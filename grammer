@@ -1,0 +1,5 @@
+<program>			::= { <statement> }
+<statement>			::= <print_statement> [ ";"]
+<print_statement>	::= "print" "(" [ <arg_list> ] ")"
+<arg_list>			::= <expression>
+<expression>		::= <number>
