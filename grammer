@@ -1,5 +1,4 @@
-<program>			::= { <statement> }
-<statement>			::= <print_statement> [ ";"]
-<print_statement>	::= "print" "(" [ <arg_list> ] ")"
-<arg_list>			::= <expression>
+<program>			::= <statement> [ <statement> ... ]
+<statement>			::= <print_statement> ";"
+<print_statement>	::= "print" "(" <expression> ")
 <expression>		::= <number>
