@@ -1,4 +1,7 @@
 <program>			::= <statement> [ <statement> ... ]
-<statement>			::= <print_statement> ";"
+<statement>			::= ( <print_statement> | <assignment> ) ";"
 <print_statement>	::= "print" "(" <expression> ")
-<expression>		::= <number>
+<assignment>		::= <identifier> "=" <expression>
+<expression>		::= <number> | <identifier>
+<number>			::= number
+<identifier>		::= valid variable name

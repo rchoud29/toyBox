@@ -1,2 +1,3 @@
 print(123);
-print(21);
+a=3;
+print(a);

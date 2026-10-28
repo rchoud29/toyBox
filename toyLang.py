@@ -7,6 +7,7 @@ class ToyLang:
         self.token_feed = self.tokens()
         self.returned_tokens = []
         self.stack = []
+        self.vars = {}
 
     def raise_error(self, msg):
         raise ValueError(f'{self.pos}: {msg}')
@@ -20,19 +21,20 @@ class ToyLang:
 
     def islegal(self, char):
         allowed = {'(',')',';','\n',' ','_','<EOF>'}
-        return bool(char) and (char.isalnum() or char in allowed)
+        return bool(char) and \
+                (ispunctuation(char) or is_identifier_part(char) or \
+                 char in allowed)
 
     def ispunctuation(self, char):
-        allowed = {'(',')',';'}
+        allowed = {'(',')',';','='}
         return  char in allowed
 
     def is_identifier_start(self, char):
-        allowed = {'_'}
+        allowed = {}
         return char.isalpha() or char in allowed
     def is_identifier_part(self, char):
         allowed = {'_'}
         return char.isalpha() or char in allowed
-
 
 
     def next_token(self):
@@ -90,12 +92,18 @@ class ToyLang:
 
     def parse_expression(self):
         token = self.next_token()
-        if token[0] != 'number':
-            self.return_token(token)
-            return False
+        if token[0] == 'number':
+            self.push(token[1])
+            return True
+        if token[0] == 'identifier':
+            if token[1] not in self.vars:
+                self.raise_error(f"Syntax Error: Unkown variable {token[1]}")
+            else:
+                self.push(self.vars[token[1]])
+            return True
 
-        self.push(token[1])
-        return True
+        self.return_token(token)
+        return False
 
     def parse_print_statement(self):
         token = self.next_token()
@@ -118,10 +126,27 @@ class ToyLang:
         print(self.pop())
         return True
 
+    def parse_assignment(self):
+        token = self.next_token()
+        if token[0] != 'identifier':
+            self.return_token(token)
+            return False
+        identifier = token[1]
+
+        token = self.next_token()
+        if token[1] != '=':
+            self.raise_error("Expected: '='")
+        if not self.parse_expression():
+            self.raise_error("Expected: expression")
+
+        self.vars[identifier] = self.pop()
+        return True
+
 
     def parse_statement(self):
-        if not self.parse_print_statement():
-            self.raise_error('Expected: print statement')
+        if not self.parse_print_statement() and \
+           not self.parse_assignment():
+            self.raise_error('Expected: legal statement')
         token = self.next_token();
         if token[1] != ';':
             self.raise_error('Expected: statement terminator (\';\')')
