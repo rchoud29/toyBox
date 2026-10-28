@@ -16,23 +16,50 @@ class ToyLang:
         return self.stack.append(arg)
     def pop(self):
         return self.stack.pop()
-    
+
+    def collapse(self):
+        while len(self.stack) >= 3:
+            b = self.pop()
+            op = self.pop()
+            a = self.pop()
+
+            match op:
+                case "+":
+                    self.push(a + b)
+                case "-":
+                    self.push(a - b)
+                case "*":
+                    self.push(a * b)
+                case "/":
+                    self.push(a // b)
+                case _:
+                    self.push(a)
+                    self.push(op)
+                    self.push(b)
+
+            return self.pop()
+        return self.pop()
+   
 
 
     def islegal(self, char):
         allowed = {'(',')',';','\n',' ','_','<EOF>'}
         return bool(char) and \
-                (ispunctuation(char) or is_identifier_part(char) or \
+                (ispunctuation(char) or isidentifierpart(char) or \
                  char in allowed)
 
     def ispunctuation(self, char):
         allowed = {'(',')',';','='}
         return  char in allowed
 
-    def is_identifier_start(self, char):
+    def isoperator(self, char):
+        allowed = {'+', '-', '*', '/'}
+        return char in allowed
+
+    def isidentifierstart(self, char):
         allowed = {}
         return char.isalpha() or char in allowed
-    def is_identifier_part(self, char):
+    def isidentifierpart(self, char):
         allowed = {'_'}
         return char.isalpha() or char in allowed
 
@@ -71,10 +98,15 @@ class ToyLang:
                 yield ('punctuation', char)
                 self.pos += 1
                 continue
+            
+            if self.isoperator(char):
+                yield ('operator', char)
+                self.pos += 1
+                continue
 
-            if self.is_identifier_start(char):
+            if self.isidentifierstart(char):
                 while self.pos < len(self.code) and \
-                        self.is_identifier_part(self.code[self.pos]):
+                        self.isidentifierpart(self.code[self.pos]):
                     self.pos += 1
                 yield ('identifier', self.code[start:self.pos])
                 continue
@@ -90,8 +122,12 @@ class ToyLang:
 
 
 
-    def parse_expression(self):
+    def parse_value(self):
         token = self.next_token()
+        if token[0] not in {"number", "identifier"}:
+            self.return_token(token)
+            return False
+
         if token[0] == 'number':
             self.push(token[1])
             return True
@@ -102,8 +138,25 @@ class ToyLang:
                 self.push(self.vars[token[1]])
             return True
 
-        self.return_token(token)
-        return False
+        self.raise_error(f"idk how i got here")
+
+    def parse_operator(self):
+        token = self.next_token()
+        if token[0] != "operator":
+            self.return_token(token)
+            return False
+        
+        self.push(self.collapse())
+        self.push(token[1])
+        return True
+
+    def parse_expression(self):
+        if not self.parse_value():
+            return False
+        if self.parse_operator():
+            self.parse_expression()
+
+        return True
 
     def parse_print_statement(self):
         token = self.next_token()
@@ -123,7 +176,7 @@ class ToyLang:
         if token[1] != ')':
             self.raise_error("Expected: ')'")
 
-        print(self.pop())
+        print(self.collapse())
         return True
 
     def parse_assignment(self):
@@ -139,7 +192,7 @@ class ToyLang:
         if not self.parse_expression():
             self.raise_error("Expected: expression")
 
-        self.vars[identifier] = self.pop()
+        self.vars[identifier] = self.collapse()
         return True
 
 

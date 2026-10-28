@@ -2,6 +2,8 @@
 <statement>			::= ( <print_statement> | <assignment> ) ";"
 <print_statement>	::= "print" "(" <expression> ")
 <assignment>		::= <identifier> "=" <expression>
-<expression>		::= <number> | <identifier>
+<expression>		::= <value> [ <operator> <expression> ]
+<operator>			::= "+" | "-" | "*" | "/"
+<value>				::= <number> | <identifier>
 <number>			::= number
 <identifier>		::= valid variable name
