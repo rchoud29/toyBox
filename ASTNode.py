@@ -6,7 +6,7 @@ class ASTNode:
 
 @dataclass
 class NumNode(ASTNode):
-    value: Union[int, float]
+    val: Union[int, float]
 
     def __repr__(self):
         return f"NumNode({self.value})"

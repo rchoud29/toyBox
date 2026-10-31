@@ -1,16 +1,20 @@
 import sys
 from lexer import Lexer
 from parser import Parser
+from interpreter import Interpreter
 
 class ToyLang:
     def __init__(self, code):
         self.code = code
         self.lexer = Lexer(self.code)
         self.parser = Parser(self.lexer)
+        self.interpreter = Interpreter()
+        self.ast = None
     
     def run(self):
         try:
-            print(self.parser.parse_program())
+            self.ast = self.parser.parse_program()
+            return self.interpreter.interpret(self.ast)
         except ValueError as exc:
             print(str(exc))
             return False
