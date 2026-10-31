@@ -5,5 +5,3 @@
 <expression>		::= <value> [ <operator> <expression> ]
 <operator>			::= "+" | "-" | "*" | "/"
 <value>				::= <number> | <identifier>
-<number>			::= number
-<identifier>		::= valid variable name
