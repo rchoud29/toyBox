@@ -1,3 +1,19 @@
+from tokens import TokenType, Token
+
+KEYWORDS = {
+    "print": TokenType.PRINT,
+}
+
+SYMBOLS = {
+    '(': TokenType.LPAREN,
+    ')': TokenType.RPAREN,
+    ';': TokenType.SEMICOLON,
+    '+': TokenType.PLUS,
+    '-': TokenType.MINUS,
+    '*': TokenType.STAR,
+    '/': TokenType.SLASH,
+}
+
 class Lexer:
     def __init__(self, code):
         self.code = code
@@ -8,13 +24,10 @@ class Lexer:
     def raise_error(self, msg):
         raise ValueError(f"{self.pos}: {msg}")
 
-    def ispunctuation(self, char):
-        allowed = {'(',')',';','='}
-        return  char in allowed
-
-    def isoperator(self, char):
-        allowed = {'+', '-', '*', '/'}
-        return char in allowed
+    def peek(self):
+        if pos := self.pos + 1 < len(self.code):
+            return self.code[pos]
+        return None
 
     def isidentifierstart(self, char):
         allowed = {'_'}
@@ -23,6 +36,7 @@ class Lexer:
     def isidentifierpart(self, char):
         allowed = {'_'}
         return char.isalnum() or char in allowed
+
 
     def next_token(self):
         if self.returned_tokens:
@@ -52,28 +66,45 @@ class Lexer:
                 self.pos += 1
                 continue
 
-            if self.ispunctuation(char):
-                yield ('punctuation', char)
+            if char == '=':
                 self.pos += 1
+                if self.peek() == '=':
+                    self.pos += 1
+                    yield Token(TokenType.EQ, "==")
+                else: yield Token(TokenType.ASSIGN, char)
                 continue
-            
-            if self.isoperator(char):
-                yield ('operator', char)
+
+            if char == '!':
+                if self.peek_char() == '=':
+                    self.pos += 2
+                    yield Token(TokenType.NEQ, '!=')
+                else:
+                    yield Token(TokenType.NOT, char)
+                continue
+
+            if char in SYMBOLS:
                 self.pos += 1
+                yield Token(SYMBOLS[char], char)
                 continue
 
             if self.isidentifierstart(char):
                 while self.pos < len(self.code) and \
                         self.isidentifierpart(self.code[self.pos]):
                     self.pos += 1
-                yield ('identifier', self.code[start:self.pos])
+                val = self.code[start:self.pos]
+                type = KEYWORDS.get(val, TokenType.IDENTIFIER)
+                yield Token(type, val)
                 continue
 
             if char.isdigit():
                 while self.pos < len(self.code) and \
                                  self.code[self.pos].isdigit():
                     self.pos += 1
-                yield ('number', int(self.code[start:self.pos]))
+                yield Token(TokenType.NUMBER, int(self.code[start:self.pos]))
                 continue
 
             self.raise_error(f"Unexpected character '{char}'")
+            
+        yield Token(TokenType.EOF)
+
+

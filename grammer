@@ -2,6 +2,18 @@
 <statement>			::= ( <print_statement> | <assignment> ) ";"
 <print_statement>	::= "print" "(" <expression> ")
 <assignment>		::= <identifier> "=" <expression>
-<expression>		::= <value> [ <operator> <expression> ]
-<operator>			::= "+" | "-" | "*" | "/"
-<value>				::= <number> | <identifier>
+
+<expression>		::= <logic_and> [ "||" <expression> ]
+
+<logic_and>			::= <comparison> [ "&&" <logic_and> ]
+
+<comparison>		::= <term> [ <comp_op> <comparison> ]
+<comp_op>			::= "==" | "!=" | "<=" | ">=" | "<" | ">"
+
+<term>				::= <factor> [ <add_op> <term> ]
+<add_op>			::= "+" | "-"
+
+<factor>			::= <primary> [ <mult_op> <factor> ]
+<mult_op>			::= "*" | "/"
+
+<primary>			::= <number> | <identifier> | "(" <expression> ")"

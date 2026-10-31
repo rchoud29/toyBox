@@ -6,16 +6,8 @@ from ASTNode import (
     NumNode,
     IdNode,
 )
+from tokens import TokenType, Token
 
-"""
-    <program>         ::= <statement> [ <statement> ... ]
-    <statement>       ::= ( <print_statement> | <assignment> ) ";"
-    <print_statement> ::= "print" "(" <expression> ")"
-    <assignment>      ::= <identifier> "=" <expression>
-    <expression>      ::= <value> [ <operator> <expression> ]
-    <operator>        ::= "+" | "-" | "*" | "/"
-    <value>           ::= <number> | <identifier>
-"""
 class Parser:
     def __init__(self, lexer):
         self.lexer = lexer
@@ -27,83 +19,139 @@ class Parser:
         self.lexer.return_token(token := self.lexer.next_token())
         return token
 
-    def consume(self, type=None, val=None):
+    def consume(self, type=None) -> Token:
         token = self.lexer.next_token()
-        if token is None:
-            raise SyntaxError(
-                f"Unexpected EOF. Expected type='{type}', value='{val}'")
+        if token.type != type:
+            self.lexer.return_token(token)
+            raise SyntaxError(f"Expected {type.name}, got {token!r}")
         
-        if type and token[0] != type:
-            self.lexer.return_token(token)
-            raise SyntaxError(
-                f"Position {self.lexer.pos}: Expected token type '{type}', got '{token[0]}' ({token[1]!r})"
-            )
-        if val and token[1] != val:
-            self.lexer.return_token(token)
-            raise SyntaxError(
-                f"Position {self.lexer.pos}: Expected token value '{val}', got '{token[1]!r}'"
-            )
-
         return token
 
-    def parse_value(self):
+
+    def parse_primary(self):
         token = self.peek()
-        if token is None:
-            raise SyntaxError("Expected value, got EOF")
 
-        type, val = token
+        if token.type == TokenType.NUMBER:
+            self.consume(TokenType.NUMBER)
+            return NumNode(token.val)
 
-        match type:
-            case "number":
-                self.consume("number")
-                return NumNode(val)
-            case "identifier":
-                self.consume("identifier")
-                return IdNode(val)
-            case _:
-                raise SyntaxError(f"Expected legal type, got '{type}'")
+        if token.type == TokenType.IDENTIFIER:
+            self.consume(TokenType.IDENTIFIER)
+            return IdNode(token.val)
+
+        if token.type == TokenType.LPAREN:
+            self.consume(TokenType.LPAREN)
+            expr = self.parse_expression()
+            self.consume(TokenType.RPAREN)
+            return expr
+
+        raise SyntaxError(f"Expected val or '(', got {token!r}")
+
+    def parse_factor(self):
+        a = self.parse_primary()
+
+        multTypes = (
+            TokenType.STAR,
+            TokenType.SLASH,
+        )
+
+        token = self.peek()
+        if token.type in multTypes:
+            op = self.lexer.next_token()
+            b = self.parse_term()
+            return BinOpNode(op, a, b)
+        return a
+
+
+    def parse_term(self):
+        a = self.parse_factor()
+
+        addTypes = (
+            TokenType.PLUS,
+            TokenType.MINUS,
+        )
+
+        token = self.peek()
+        if token.type in addTypes:
+            op = self.lexer.next_token()
+            b = self.parse_term()
+            return BinOpNode(op, a, b)
+        return a
+
+
+    def parse_comparison(self):
+        a = self.parse_term()
+
+        compTypes = (
+            TokenType.EQ,
+            TokenType.NEQ,
+            TokenType.LESS,
+            TokenType.LEQ,
+            TokenType.GREATER,
+            TokenType.GEQ,
+        )
+
+        token = self.peek()
+        if token.type in compTypes:
+            op = self.lexer.next_token()
+            b = self.parse_comparison()
+            return BoolOpNode(op, a, b)
+        return a
+
+    def parse_logic_and(self):
+        a = self.parse_comparison()
+        
+        token = self.peek()
+        if token.type == TokenType.AND:
+            op = self.lexer.next_token()
+            b = self.parse_logic_and()
+            return BoolOpNode(op, a, b)
+        return a
 
     def parse_expression(self):
-        left = self.parse_value()
+        a = self.parse_logic_and()
+
         token = self.peek()
-        if token and token[0] == "operator":
-            _, op = self.consume("operator")
-            right = self.parse_expression()
-            return BinOpNode(op, left, right)
-        return left
+        if token.type == TokenType.OR:
+            op = self.lexer.next_token()
+            b = self.parse_expression()
+            return BoolOpNode(op, a, b)
+        return a
 
     def parse_print_statement(self):
-        self.consume("identifier", "print")
-        self.consume("punctuation", '(')
+        self.consume(TokenType.PRINT)
+        self.consume(TokenType.LPAREN)
         expr = self.parse_expression()
-        self.consume("punctuation", ')')
+        self.consume(TokenType.RPAREN)
         return PrintNode(expr)
 
     def parse_assignment(self):
-        _, id = self.consume("identifier")
-        self.consume("punctuation", '=')
+        id = self.consume(TokenType.IDENTIFIER)
+        self.consume(TokenType.ASSIGN)
         expr = self.parse_expression()
-        return AssignNode(id, expr)
+        return AssignNode(id.val, expr)
 
     def parse_statement(self):
+        #<statement>			::= ( <print_statement> | <assignment> ) ";"
         token = self.peek()
-        if token is None:
+        if token.type is TokenType.EOF:
             raise SyntaxError("Expected statement, got EOF")
-        
-        if token[0] == "identifier" and token[1] == "print":
+
+        if token.type == TokenType.PRINT:
             statement = self.parse_print_statement()
-        elif token[0] == "identifier":
+        elif token.type == TokenType.IDENTIFIER:
             statement = self.parse_assignment()
         else:
-            raise SyntaxError("Unexpected token: '{token[1]}'")
+            raise SyntaxError("Unexpected token: '{token.val}'")
 
-        self.consume("punctuation", ';')
+        self.consume(TokenType.SEMICOLON)
         return statement
 
 
     def parse_program(self):
+        #<program>			::= <statement> [ <statement> ... ]
         statements = []
-        while self.peek() is not None:
+        while self.peek().type != TokenType.EOF:
             statements.append(self.parse_statement())
 
         return ProgramNode(statements)

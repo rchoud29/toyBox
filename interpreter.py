@@ -1,57 +1,99 @@
 from ASTNode import (
+    ASTNode,
     ProgramNode,
     AssignNode,
     PrintNode,
     BinOpNode,
+    BoolOpNode,
     NumNode,
-    IdNode
+    IdNode,
 )
+from tokens import TokenType, Token
+
 
 class Interpreter:
     def __init__(self):
         self.env = {}
 
-    def interpret(self, node):
-        if isinstance(node, ProgramNode):
-            result = None
-            for statement in node.statements:
-                result = self.interpret(statement)
-            return result
+    def interpret(self, node: ASTNode):
+        return self.visit(node)
 
-        if isinstance(node, AssignNode):
-            val = self.interpret(node.expr)
-            self.env[node.name] = val
-            return val
+    def visit(self, node: ASTNode):
+        method_name = f"visit_{type(node).__name__}"
+        visitor = getattr(self, method_name, self.generic_visit)
+        return visitor(node)
 
-        if isinstance(node, PrintNode):
-            val = self.interpret(node.expr)
-            print(val)
-            return val
+    def generic_visit(self, node: ASTNode):
+        raise NotImplementedError(f"No visit_{type(node).__name__} method defined")
 
-        if isinstance(node, BinOpNode):
-            a = self.interpret(node.left)
-            b = self.interpret(node.right)
+    def visit_ProgramNode(self, node: ProgramNode):
+        result = None
+        for statement in node.statements:
+            result = self.visit(statement)
+        return result
 
-            match node.op:
-                case '+':
-                    return a + b
-                case '-':
-                    return a - b
-                case '*':
-                    return a * b
-                case '/':
-                    if b == 0:
-                        raise ZeroDivisionError("Runtime Error: Division by zero")
-                    return a // b 
-                case _:
-                    raise RuntimeError(f"Unknown operator: {node.op}")
+    def visit_AssignNode(self, node: AssignNode):
+        value = self.visit(node.expr)
+        # Handles whether node.name is a Token instance or a string
+        var_name = node.name.value if hasattr(node.name, 'value') else str(node.name)
+        self.env[var_name] = value
+        return value
 
-        if isinstance(node, NumNode):
-            return node.val
-        
-        if isinstance(node, IdNode):
-            if node.name not in self.env:
-                raise RuntimeError(f"Runtime Error: Undefined variable '{node.name}'")
-            return self.env[node.name]
+    def visit_PrintNode(self, node: PrintNode):
+        value = self.visit(node.expr)
+        print(value)
+        return value
 
-        raise RuntimeError(f"Unknown AST Node: {type(node).__name__}")
+    def visit_NumNode(self, node: NumNode):
+        return node.val
+
+    def visit_IdNode(self, node: IdNode):
+        var_name = node.name.value if hasattr(node.name, 'value') else str(node.name)
+        if var_name in self.env:
+            return self.env[var_name]
+        raise NameError(f"Undefined variable '{var_name}'")
+
+    def visit_BinOpNode(self, node: BinOpNode):
+        left_val = self.visit(node.left)
+        right_val = self.visit(node.right)
+        op_type = node.op.type if hasattr(node.op, 'type') else node.op
+
+        if op_type in (TokenType.PLUS, '+'):
+            return left_val + right_val
+        elif op_type in (TokenType.MINUS, '-'):
+            return left_val - right_val
+        elif op_type in (TokenType.STAR, '*'):
+            return left_val * right_val
+        elif op_type in (TokenType.SLASH, '/'):
+            if right_val == 0:
+                raise ZeroDivisionError("Division by zero")
+            return left_val / right_val
+        else:
+            raise ValueError(f"Unsupported binary operator: {node.op}")
+
+    def visit_BoolOpNode(self, node: BoolOpNode):
+        op_type = node.op.type if hasattr(node.op, 'type') else node.op
+
+        # Short-circuit logic operators
+        if op_type in (TokenType.AND, '&&'):
+            return bool(self.visit(node.left) and self.visit(node.right))
+        elif op_type in (TokenType.OR, '||'):
+            return bool(self.visit(node.left) or self.visit(node.right))
+
+        left_val = self.visit(node.left)
+        right_val = self.visit(node.right)
+
+        if op_type in (TokenType.EQ, '=='):
+            return left_val == right_val
+        elif op_type in (TokenType.NEQ, '!='):
+            return left_val != right_val
+        elif op_type in (TokenType.LESS, '<'):
+            return left_val < right_val
+        elif op_type in (TokenType.LEQ, '<='):
+            return left_val <= right_val
+        elif op_type in (TokenType.GREATER, '>'):
+            return left_val > right_val
+        elif op_type in (TokenType.GEQ, '>='):
+            return left_val >= right_val
+        else:
+            raise ValueError(f"Unsupported comparison operator: {node.op}")

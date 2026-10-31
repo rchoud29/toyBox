@@ -19,6 +19,15 @@ class IdNode(ASTNode):
         return f"Node({self.name})"
 
 @dataclass
+class BoolOpNode(ASTNode):
+    op: str
+    left: ASTNode
+    right: ASTNode
+
+    def __repr__(self):
+        return f"BoolOpNode({self.left} {self.op} {self.right})"
+
+@dataclass
 class BinOpNode(ASTNode):
     op: str
     left: ASTNode
