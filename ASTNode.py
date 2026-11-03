@@ -14,6 +14,14 @@ class NumNode(ASTNode):
         return f"NumNode({self.val})"
 
 @dataclass
+class BoolNode(ASTNode):
+    val: bool
+
+    def __repr(self):
+        if self.val == 0:
+            return f"BoolNode({self.val})"
+
+@dataclass
 class IdNode(ASTNode):
     name: str
 

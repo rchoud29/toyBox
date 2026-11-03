@@ -1,5 +1,5 @@
-a = 3;
-b = 9;
+a = True;
+b = False;
+c = False;
 print(a != b);
-print(a < b/3);
-print(a * b);
+print((a||b) && (c));

@@ -5,8 +5,11 @@ class TokenType(Enum):
     IDENTIFIER = auto()
     NUMBER = auto()
     STRING = auto()
+    BOOLEAN = auto()
 
     # Keywords
+    TRUE = auto()
+    FALSE = auto()
     PRINT = auto()
     IF = auto()
     ELSE = auto()

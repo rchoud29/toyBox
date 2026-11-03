@@ -7,6 +7,7 @@ from ASTNode import (
     BinOpNode,
     NumNode,
     IdNode,
+    BoolNode,
 )
 from tokens import TokenType, Token
 
@@ -41,6 +42,10 @@ class Parser:
         if token.type == TokenType.IDENTIFIER:
             self.consume(TokenType.IDENTIFIER)
             return IdNode(token.val)
+
+        if token.type == TokenType.BOOLEAN:
+            self.consume(TokenType.BOOLEAN)
+            return BoolNode(token.val)
 
         if token.type == TokenType.LPAREN:
             self.consume(TokenType.LPAREN)

@@ -2,6 +2,8 @@ from tokens import TokenType, Token
 
 KEYWORDS = {
     "print": TokenType.PRINT,
+    "true": TokenType.BOOLEAN,
+    "false": TokenType.BOOLEAN,
 }
 
 SYMBOLS = {
@@ -19,7 +21,7 @@ SYMBOLS = {
 
 class Lexer:
     def __init__(self, code):
-        self.code = code
+        self.code = code.lower()
         self.pos = 0
         self.token_feed = self.tokens()
         self.returned_tokens = []

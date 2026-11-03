@@ -6,7 +6,8 @@ from ASTNode import (
     BoolOpNode,
     BinOpNode,
     NumNode,
-    IdNode
+    IdNode,
+    BoolNode,
 )
 from tokens import TokenType
 
@@ -87,5 +88,11 @@ class Interpreter:
             if node.name not in self.env:
                 raise RuntimeError(f"Runtime Error: Undefined variable '{node.name}'")
             return self.env[node.name]
+
+        if isinstance(node, BoolNode):
+            if node.val == "true":
+                return True
+            else:
+                return False
 
         raise RuntimeError(f"Unknown AST Node: {type(node).__name__}")
