@@ -1,4 +1,5 @@
 import sys
+import argparse
 from lexer import Lexer
 from parser import Parser
 from interpreter import Interpreter
@@ -19,8 +20,25 @@ class ToyLang:
             print(str(exc))
             return False
 
+    def step(self):
+        try:
+            self.ast = self.parser.step_program()
+        except ValueError as exc:
+            print(str(exc))
+            return False
+
+
 if __name__ == '__main__':
-    with open(sys.argv[1], 'rt') as f:
+    argParser = argparse.ArgumentParser('ToyLang')
+    argParser.add_argument('filename')
+    argParser.add_argument('-s', '--step', action='store_const', const=1)
+
+    args = argParser.parse_args()
+    with open(args.filename, 'rt') as f:
         code = f.read()
+
     program = ToyLang(code)
-    program.run()
+    if args.step == 1:
+        program.step()
+    else:
+        program.run()

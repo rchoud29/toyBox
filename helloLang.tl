@@ -1,5 +1,4 @@
-print(123);
-a=3;
-print(a);
-a=9*9;
-print(a/9);
+a = 3;
+b = 9;
+print(a != b);
+print(a * b);

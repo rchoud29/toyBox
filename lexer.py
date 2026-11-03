@@ -25,7 +25,7 @@ class Lexer:
         raise ValueError(f"{self.pos}: {msg}")
 
     def peek(self):
-        if pos := self.pos + 1 < len(self.code):
+        if (pos := self.pos + 1) < len(self.code):
             return self.code[pos]
         return None
 
@@ -67,19 +67,36 @@ class Lexer:
                 continue
 
             if char == '=':
-                self.pos += 1
                 if self.peek() == '=':
-                    self.pos += 1
+                    self.pos += 2
                     yield Token(TokenType.EQ, "==")
-                else: yield Token(TokenType.ASSIGN, char)
+                else: 
+                    self.pos += 1
+                    yield Token(TokenType.ASSIGN, char)
                 continue
 
             if char == '!':
-                if self.peek_char() == '=':
+                if self.peek() == '=':
                     self.pos += 2
                     yield Token(TokenType.NEQ, '!=')
                 else:
                     yield Token(TokenType.NOT, char)
+                continue
+
+            if char == '&':
+                if self.peek() == '&':
+                    self.pos += 2
+                    yield Token(TokenType.AND, "&&")
+                else:
+                    yield Token(TokenType.BAND, '&')
+                continue
+
+            if char == '|':
+                if self.peek_char() == '|':
+                    self.pos += 2
+                    yield Token(TokenType.OR, "||")
+                else:
+                    yield Token(TokenType.BOR, '|')
                 continue
 
             if char in SYMBOLS:

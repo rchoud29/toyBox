@@ -25,7 +25,9 @@ class TokenType(Enum):
     GREATER = auto()     # >
     GEQ = auto()         # >=
     AND = auto()         # &&
+    BAND = auto()        # &
     OR = auto()          # ||
+    BOR = auto()         # |
 
     # Delimiters
     LPAREN = auto()      # (

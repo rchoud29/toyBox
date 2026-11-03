@@ -1,6 +1,8 @@
 from dataclasses import dataclass, field
 from typing import List, Union
 
+from tokens import Token
+
 class ASTNode:
     pass
 
@@ -9,7 +11,7 @@ class NumNode(ASTNode):
     val: Union[int, float]
 
     def __repr__(self):
-        return f"NumNode({self.value})"
+        return f"NumNode({self.val})"
 
 @dataclass
 class IdNode(ASTNode):
@@ -19,22 +21,31 @@ class IdNode(ASTNode):
         return f"Node({self.name})"
 
 @dataclass
-class BoolOpNode(ASTNode):
-    op: str
-    left: ASTNode
-    right: ASTNode
+class CompOpNode(ASTNode):
+    op: Token
+    a: ASTNode
+    b: ASTNode
 
     def __repr__(self):
-        return f"BoolOpNode({self.left} {self.op} {self.right})"
+        return f"CompOpNode({self.a} {self.op} {self.b})"
+
+@dataclass
+class BoolOpNode(ASTNode):
+    op: Token
+    a: ASTNode
+    b: ASTNode
+
+    def __repr__(self):
+        return f"BoolOpNode({self.a} {self.op} {self.b})"
 
 @dataclass
 class BinOpNode(ASTNode):
-    op: str
-    left: ASTNode
-    right: ASTNode
+    op: Token
+    a: ASTNode
+    b: ASTNode
 
     def __repr__(self):
-        return f"BinOpNode({self.left} {self.op} {self.right})"
+        return f"BinOpNode({self.a} {self.op} {self.b})"
 
 @dataclass
 class PrintNode(ASTNode):
@@ -45,7 +56,7 @@ class PrintNode(ASTNode):
 
 @dataclass
 class AssignNode(ASTNode):
-    name: str
+    name: Token
     expr: ASTNode
 
     def __repr__(self):

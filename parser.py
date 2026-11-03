@@ -2,6 +2,8 @@ from ASTNode import (
     ProgramNode,
     AssignNode,
     PrintNode,
+    CompOpNode,
+    BoolOpNode,
     BinOpNode,
     NumNode,
     IdNode,
@@ -11,6 +13,7 @@ from tokens import TokenType, Token
 class Parser:
     def __init__(self, lexer):
         self.lexer = lexer
+        self.step = False
 
     def raise_error(self, msg):
         self.lexer.raise_error(msg)
@@ -95,7 +98,7 @@ class Parser:
         if token.type in compTypes:
             op = self.lexer.next_token()
             b = self.parse_comparison()
-            return BoolOpNode(op, a, b)
+            return CompOpNode(op, a, b)
         return a
 
     def parse_logic_and(self):
@@ -112,6 +115,7 @@ class Parser:
         a = self.parse_logic_and()
 
         token = self.peek()
+
         if token.type == TokenType.OR:
             op = self.lexer.next_token()
             b = self.parse_expression()
@@ -127,16 +131,19 @@ class Parser:
 
     def parse_assignment(self):
         id = self.consume(TokenType.IDENTIFIER)
+        if self.step: input(f"{self.peek()}> ")
         self.consume(TokenType.ASSIGN)
         expr = self.parse_expression()
-        return AssignNode(id.val, expr)
+        return AssignNode(id, expr)
 
     def parse_statement(self):
         #<statement>			::= ( <print_statement> | <assignment> ) ";"
         token = self.peek()
         if token.type is TokenType.EOF:
             raise SyntaxError("Expected statement, got EOF")
-
+        
+        if self.step: 
+            input(f"{token}>")
         if token.type == TokenType.PRINT:
             statement = self.parse_print_statement()
         elif token.type == TokenType.IDENTIFIER:
@@ -145,12 +152,23 @@ class Parser:
             raise SyntaxError("Unexpected token: '{token.val}'")
 
         self.consume(TokenType.SEMICOLON)
+        if (self.step):
+            print(statement)
         return statement
 
 
     def parse_program(self):
         #<program>			::= <statement> [ <statement> ... ]
         statements = []
+        while self.peek().type != TokenType.EOF:
+            statements.append(self.parse_statement())
+
+        return ProgramNode(statements)
+
+    def step_program(self):
+        self.step = True
+        statements = []
+
         while self.peek().type != TokenType.EOF:
             statements.append(self.parse_statement())
 
