@@ -12,6 +12,9 @@ SYMBOLS = {
     '-': TokenType.MINUS,
     '*': TokenType.STAR,
     '/': TokenType.SLASH,
+
+    '<': TokenType.LESS,
+    '>': TokenType.GREATER,
 }
 
 class Lexer:
@@ -92,11 +95,27 @@ class Lexer:
                 continue
 
             if char == '|':
-                if self.peek_char() == '|':
+                if self.peek() == '|':
                     self.pos += 2
                     yield Token(TokenType.OR, "||")
                 else:
                     yield Token(TokenType.BOR, '|')
+                continue
+
+            if char == '<':
+                if self.peek() == '=':
+                    self.pos += 2
+                    yield Token(TokenType.LEQ, '<=')
+                else:
+                    yield Token(TokenType.LESS, '<')
+                continue
+
+            if char == '>':
+                if self.peek() == '=':
+                    self.pos += 2
+                    yield Token(TokenType.GEQ, '>=')
+                else:
+                    yield Token(TokenType.GREATER, '>')
                 continue
 
             if char in SYMBOLS:

@@ -26,7 +26,7 @@ class Parser:
         token = self.lexer.next_token()
         if token.type != type:
             self.lexer.return_token(token)
-            raise SyntaxError(f"Expected {type.name}, got {token!r}")
+            raise SyntaxError(f"({self.lexer.pos}) Expected {type.name}, got {token!r}")
         
         return token
 
@@ -48,7 +48,7 @@ class Parser:
             self.consume(TokenType.RPAREN)
             return expr
 
-        raise SyntaxError(f"Expected val or '(', got {token!r}")
+        raise SyntaxError(f"({self.lexer.pos}) Expected val or '(', got {token!r}")
 
     def parse_factor(self):
         a = self.parse_primary()

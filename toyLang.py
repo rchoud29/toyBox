@@ -27,11 +27,16 @@ class ToyLang:
             print(str(exc))
             return False
 
+    def tokens(self):
+        while self.lexer.peek():
+            print(next(self.lexer.tokens()))
+
 
 if __name__ == '__main__':
     argParser = argparse.ArgumentParser('ToyLang')
     argParser.add_argument('filename')
     argParser.add_argument('-s', '--step', action='store_const', const=1)
+    argParser.add_argument('-t', '--tokens', action='store_const', const=True)
 
     args = argParser.parse_args()
     with open(args.filename, 'rt') as f:
@@ -40,5 +45,7 @@ if __name__ == '__main__':
     program = ToyLang(code)
     if args.step == 1:
         program.step()
+    elif args.tokens:
+        program.tokens()
     else:
         program.run()
