@@ -83,6 +83,7 @@ class Lexer:
                     self.pos += 2
                     yield Token(TokenType.NEQ, '!=')
                 else:
+                    self.pos += 1
                     yield Token(TokenType.NOT, char)
                 continue
 
@@ -91,6 +92,7 @@ class Lexer:
                     self.pos += 2
                     yield Token(TokenType.AND, "&&")
                 else:
+                    self.pos += 1
                     yield Token(TokenType.BAND, '&')
                 continue
 
@@ -99,6 +101,7 @@ class Lexer:
                     self.pos += 2
                     yield Token(TokenType.OR, "||")
                 else:
+                    self.pos += 1
                     yield Token(TokenType.BOR, '|')
                 continue
 
@@ -107,6 +110,7 @@ class Lexer:
                     self.pos += 2
                     yield Token(TokenType.LEQ, '<=')
                 else:
+                    self.pos += 1
                     yield Token(TokenType.LESS, '<')
                 continue
 
