@@ -147,9 +147,14 @@ class Parser:
     def parse_if_statement(self):
         self.consume(TokenType.IF)
         expr = self.parse_expression()
-        block = self.parse_block()
+        a = self.parse_block()
+        b = None
+        token = self.peek()
+        if token.type == TokenType.ELSE:
+            self.consume(TokenType.ELSE)
+            b = self.parse_block()
 
-        return IfNode(expr, block)
+        return IfNode(expr, a, b)
 
     def parse_statement(self):
         #<statement>			::= ( <print_statement> | <assignment> ) ";"

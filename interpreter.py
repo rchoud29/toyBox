@@ -30,7 +30,7 @@ class Interpreter:
             if isinstance(node.cond, BoolNode):
                 cond = node.cond.val
             else:
-                cond = self.env[node.cond.name]
+                cond = self.interpret(node.cond)
             if cond:
                 for statement in node.a.statements:
                     result = self.interpret(statement)
@@ -45,7 +45,6 @@ class Interpreter:
             return val
 
         if isinstance(node, PrintNode):
-            print(node)
             val = self.interpret(node.expr)
             print(val)
             return val
