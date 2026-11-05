@@ -20,8 +20,38 @@ class Parser:
         self.lexer = lexer
         self.step = False
 
+    def syntax_error(self, msg, token=None):
+        token = token or self.peek()
+        
+        # Safely extract line, column, or position info from token or lexer
+        line = getattr(token, 'line', getattr(self.lexer, 'line', None))
+        col = getattr(token, 'col', getattr(token, 'column', getattr(self.lexer, 'col', getattr(self.lexer, 'column', None))))
+        pos = getattr(token, 'pos', getattr(self.lexer, 'pos', None))
+
+        location_parts = []
+        if line is not None:
+            location_parts.append(f"line {line}")
+        if col is not None:
+            location_parts.append(f"column {col}")
+        elif pos is not None:
+            location_parts.append(f"pos {pos}")
+
+        loc_str = f"[{', '.join(location_parts)}] " if location_parts else ""
+        
+        token_val = getattr(token, 'val', None)
+        token_type = getattr(token, 'type', None)
+        
+        if token_type == TokenType.EOF:
+            got_str = "EOF"
+        elif token_val is not None:
+            got_str = f"'{token_val}'"
+        else:
+            got_str = repr(token)
+
+        raise SyntaxError(f"{loc_str}{msg}, got {got_str}")
+
     def raise_error(self, msg):
-        self.lexer.raise_error(msg)
+        self.syntax_error(msg)
 
     def peek(self):
         self.lexer.return_token(token := self.lexer.next_token())
@@ -31,10 +61,10 @@ class Parser:
         token = self.lexer.next_token()
         if token.type != type:
             self.lexer.return_token(token)
-            raise SyntaxError(f"({self.lexer.pos}) Expected {type.name}, got {token!r}")
+            type_name = getattr(type, 'name', str(type))
+            self.syntax_error(f"Expected token type '{type_name}'", token)
         
         return token
-
 
     def parse_primary(self):
         token = self.peek()
@@ -57,7 +87,7 @@ class Parser:
             self.consume(TokenType.RPAREN)
             return expr
 
-        raise SyntaxError(f"({self.lexer.pos}) Expected val or '(', got {token!r}")
+        self.syntax_error("Expected number, identifier, boolean, or '('", token)
 
     def parse_factor(self):
         a = self.parse_primary()
@@ -74,7 +104,6 @@ class Parser:
             return BinOpNode(op, a, b)
         return a
 
-
     def parse_term(self):
         a = self.parse_factor()
 
@@ -89,7 +118,6 @@ class Parser:
             b = self.parse_term()
             return BinOpNode(op, a, b)
         return a
-
 
     def parse_comparison(self):
         a = self.parse_term()
@@ -166,8 +194,6 @@ class Parser:
 
         return ForNode(assignments, cond, block, a, c)
 
-
-
     def parse_while_statement(self):
         self.consume(TokenType.WHILE)
         expr = self.parse_expression()
@@ -178,7 +204,6 @@ class Parser:
             self.consume(TokenType.FINALLY)
             c = self.parse_block()
         return WhileNode(expr, a, c)
-
 
     def parse_if_statement(self):
         self.consume(TokenType.IF)
@@ -198,11 +223,10 @@ class Parser:
         return IfNode(expr, a, b, c)
 
     def parse_statement(self):
-        #<statement>			::= ( <print_statement> | <assignment> ) ";"
         token = self.peek()
         checkDelimiter = False
         if token.type is TokenType.EOF:
-            raise SyntaxError("Expected statement, got EOF")
+            self.syntax_error("Expected statement", token)
         
         if self.step: 
             input(f"{token}>")
@@ -219,7 +243,7 @@ class Parser:
         elif token.type == TokenType.FOR:
             statement = self.parse_for_statement()
         else:
-            raise SyntaxError(f"Unexpected token: '{token.val}'")
+            self.syntax_error("Unexpected statement start", token)
 
         if checkDelimiter: self.consume(TokenType.SEMICOLON)
         if self.step: print(statement)
@@ -235,7 +259,6 @@ class Parser:
         return BlockNode(statements)
 
     def parse_program(self):
-        #<program>			::= <statement> [ <statement> ... ]
         statements = []
         while self.peek().type != TokenType.EOF:
             statements.append(self.parse_statement())

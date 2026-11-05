@@ -28,18 +28,31 @@ SYMBOLS = {
 
 class Lexer:
     def __init__(self, code):
-        self.code = code.lower()
+        self.code = code
         self.pos = 0
+        self.line = 1
+        self.col = 1
         self.token_feed = self.tokens()
         self.returned_tokens = []
 
     def raise_error(self, msg):
-        raise ValueError(f"{self.pos}: {msg}")
+        raise ValueError(f"[{self.line}:{self.col} (pos {self.pos})]: {msg}")
 
     def peek(self):
         if (pos := self.pos + 1) < len(self.code):
             return self.code[pos]
         return None
+
+    def advance(self, amount: int = 1):
+        """Advances reader position while updating line and column counters."""
+        for _ in range(amount):
+            if self.pos < len(self.code):
+                if self.code[self.pos] == '\n':
+                    self.line += 1
+                    self.col = 1
+                else:
+                    self.col += 1
+                self.pos += 1
 
     def isidentifierstart(self, char):
         allowed = {'_'}
@@ -49,17 +62,13 @@ class Lexer:
         allowed = {'_'}
         return char.isalnum() or char in allowed
 
-
     def next_token(self):
         if self.returned_tokens:
-            token = self.returned_tokens.pop()
-        else:
-            try:
-                token = next(self.token_feed)
-            except StopIteration:
-                token = None
-
-        return token
+            return self.returned_tokens.pop()
+        try:
+            return next(self.token_feed)
+        except StopIteration:
+            return None
     
     def return_token(self, token):
         if token is not None:
@@ -70,90 +79,94 @@ class Lexer:
             self.return_token(token)
 
     def tokens(self):
+        code_lower = self.code.lower()
+
         while self.pos < len(self.code):
-            char = self.code[self.pos]
-            start = self.pos
+            char = code_lower[self.pos]
+            start_line, start_col, start_pos = self.line, self.col, self.pos
 
             if char.isspace():
-                self.pos += 1
+                self.advance(1)
                 continue
 
             if char == '=':
                 if self.peek() == '=':
-                    self.pos += 2
-                    yield Token(TokenType.EQ, "==")
+                    self.advance(2)
+                    yield Token(TokenType.EQ, "==", start_line, start_col, start_pos)
                 else: 
-                    self.pos += 1
-                    yield Token(TokenType.ASSIGN, char)
+                    self.advance(1)
+                    yield Token(TokenType.ASSIGN, char, start_line, start_col, start_pos)
                 continue
 
             if char == '!':
                 if self.peek() == '=':
-                    self.pos += 2
-                    yield Token(TokenType.NEQ, '!=')
+                    self.advance(2)
+                    yield Token(TokenType.NEQ, '!=', start_line, start_col, start_pos)
                 else:
-                    self.pos += 1
-                    yield Token(TokenType.NOT, char)
+                    self.advance(1)
+                    yield Token(TokenType.NOT, char, start_line, start_col, start_pos)
                 continue
 
             if char == '&':
                 if self.peek() == '&':
-                    self.pos += 2
-                    yield Token(TokenType.AND, "&&")
+                    self.advance(2)
+                    yield Token(TokenType.AND, "&&", start_line, start_col, start_pos)
                 else:
-                    self.pos += 1
-                    yield Token(TokenType.BAND, '&')
+                    self.advance(1)
+                    yield Token(TokenType.BAND, '&', start_line, start_col, start_pos)
                 continue
 
             if char == '|':
                 if self.peek() == '|':
-                    self.pos += 2
-                    yield Token(TokenType.OR, "||")
+                    self.advance(2)
+                    yield Token(TokenType.OR, "||", start_line, start_col, start_pos)
                 else:
-                    self.pos += 1
-                    yield Token(TokenType.BOR, '|')
+                    self.advance(1)
+                    yield Token(TokenType.BOR, '|', start_line, start_col, start_pos)
                 continue
 
             if char == '<':
                 if self.peek() == '=':
-                    self.pos += 2
-                    yield Token(TokenType.LEQ, '<=')
+                    self.advance(2)
+                    yield Token(TokenType.LEQ, '<=', start_line, start_col, start_pos)
                 else:
-                    self.pos += 1
-                    yield Token(TokenType.LESS, '<')
+                    self.advance(1)
+                    yield Token(TokenType.LESS, '<', start_line, start_col, start_pos)
                 continue
 
             if char == '>':
                 if self.peek() == '=':
-                    self.pos += 2
-                    yield Token(TokenType.GEQ, '>=')
+                    self.advance(2)
+                    yield Token(TokenType.GEQ, '>=', start_line, start_col, start_pos)
                 else:
-                    yield Token(TokenType.GREATER, '>')
+                    self.advance(1)
+                    yield Token(TokenType.GREATER, '>', start_line, start_col, start_pos)
                 continue
 
             if char in SYMBOLS:
-                self.pos += 1
-                yield Token(SYMBOLS[char], char)
+                self.advance(1)
+                yield Token(SYMBOLS[char], char, start_line, start_col, start_pos)
                 continue
 
             if self.isidentifierstart(char):
-                while self.pos < len(self.code) and \
-                        self.isidentifierpart(self.code[self.pos]):
-                    self.pos += 1
-                val = self.code[start:self.pos]
-                type = KEYWORDS.get(val, TokenType.IDENTIFIER)
-                yield Token(type, val)
+                start_idx = self.pos
+                while self.pos < len(self.code) and self.isidentifierpart(code_lower[self.pos]):
+                    self.advance(1)
+                val = code_lower[start_idx:self.pos]
+                if val in ("true", "false"):
+                    yield Token(TokenType.BOOLEAN, val == "true", start_line, start_col, start_pos)
+                else:
+                    type_ = KEYWORDS.get(val, TokenType.IDENTIFIER)
+                    yield Token(type_, val, start_line, start_col, start_pos)
                 continue
 
             if char.isdigit():
-                while self.pos < len(self.code) and \
-                                 self.code[self.pos].isdigit():
-                    self.pos += 1
-                yield Token(TokenType.NUMBER, int(self.code[start:self.pos]))
+                start_idx = self.pos
+                while self.pos < len(self.code) and code_lower[self.pos].isdigit():
+                    self.advance(1)
+                yield Token(TokenType.NUMBER, int(code_lower[start_idx:self.pos]), start_line, start_col, start_pos)
                 continue
 
             self.raise_error(f"Unexpected character '{char}'")
             
-        yield Token(TokenType.EOF)
-
-
+        yield Token(TokenType.EOF, None, self.line, self.col, self.pos)

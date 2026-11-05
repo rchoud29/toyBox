@@ -33,12 +33,13 @@ class TokenType(Enum):
     BAND = auto()       # &
     OR = auto()         # ||
     BOR = auto()        # |
+    NOT = auto()        # !
 
     # Delimiters
     LPAREN = auto()     # (
     RPAREN = auto()     # )
     LBRACE = auto()     # {
-    RBRACE = auto()     # 
+    RBRACE = auto()     # }
     SEMICOLON = auto()  # ;
     COMMA = auto()      # ,
 
@@ -47,9 +48,12 @@ class TokenType(Enum):
 
 
 class Token:
-    def __init__(self, type_: TokenType, val=None):
+    def __init__(self, type_: TokenType, val=None, line: int = 1, col: int = 1, pos: int = 0):
         self.type = type_
         self.val = val
+        self.line = line
+        self.col = col
+        self.pos = pos
 
     def __repr__(self):
         if self.val is not None:
