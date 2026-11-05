@@ -5,7 +5,9 @@ KEYWORDS = {
     "false": TokenType.BOOLEAN,
     "if": TokenType.IF,
     "else": TokenType.ELSE,
+    "finally": TokenType.FINALLY,
     "while": TokenType.WHILE,
+    "for": TokenType.FOR,
     "print": TokenType.PRINT,
 }
 

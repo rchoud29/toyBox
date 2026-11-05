@@ -10,6 +10,7 @@ from ASTNode import (
     BoolNode,
     IfNode,
     BlockNode,
+    WhileNode,
 )
 from tokens import Token, TokenType
 
@@ -24,6 +25,12 @@ class Interpreter:
                 result = self.interpret(statement)
             return result
 
+        if isinstance(node, BlockNode):
+            result = None
+            for statement in node.statements:
+                result = self.interpret(statement)
+            return result
+
         if isinstance(node, IfNode):
             result = None
             cond = None
@@ -32,11 +39,28 @@ class Interpreter:
             else:
                 cond = self.interpret(node.cond)
             if cond:
-                for statement in node.a.statements:
-                    result = self.interpret(statement)
-            else:
-                for statement in node.b.statements:
-                    result = self.interpret(statement)
+                result = self.interpret(node.a)
+            else: result = self.interpret(node.b)
+            if node.c: result = self.interpret(node.c)
+
+            return result
+
+        if isinstance(node, WhileNode):
+            result = None
+            cond = None
+            reCheck = False
+
+            if isinstance(node.cond, BoolNode):
+                cond = node.cond.val
+            else: 
+                cond = self.interpret(node.cond)
+                reCheck = True
+
+            while cond: 
+                result = self.interpret(node.a)
+                if reCheck: cond = self.interpret(node.cond)
+            if node.c: result = self.interpret(node.c)
+
             return result
 
         if isinstance(node, AssignNode):

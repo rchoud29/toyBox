@@ -7,7 +7,7 @@
 					  | <while_statement>
 					  | <block>
 
-<if_statement>		::= "if" "(" <expression> ")" <block> [ "else" ( <if_statement> | <block> ) ]
+<if_statement>		::= "if" "(" <expression> ")" <block> [ "else" ( <if_statement> | <block> ) ] [ "finally" <block> ]
 
 <while_statement>	::= "while" "(" <expression> ")" <block> [ "finally" <block> ]
 

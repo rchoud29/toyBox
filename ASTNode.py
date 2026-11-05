@@ -71,13 +71,34 @@ class AssignNode(ASTNode):
         return f"AssignNode({self.name} = {self.expr})"
 
 @dataclass
+class ForLoop(ASTNode):
+    assignments: List[ASTNode]
+    conds: List[ASTNode]
+    blocks: List[ASTNode]
+    a: ASTNode
+    c: ASTNode = None
+    
+    def __repr__(self):
+        return f"ForLoop()"
+
+@dataclass
+class WhileNode(ASTNode):
+    cond: BoolNode
+    a: ASTNode
+    c: ASTNode = None
+
+    def __repr__(self):
+        return f"IfNode({self.cond}, {self.a}, {self.c})"
+
+@dataclass
 class IfNode(ASTNode):
     cond: BoolNode
     a: ASTNode
     b: ASTNode = None
+    c: ASTNode = None
 
     def __repr__(self):
-        return f"IfNode({self.cond}, {self.a}, {self.b})"
+        return f"IfNode({self.cond}, {self.a}, {self.b}, {self.c})"
 
 @dataclass
 class BlockNode(ASTNode):

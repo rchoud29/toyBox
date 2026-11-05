@@ -9,7 +9,8 @@ from ASTNode import (
     IdNode,
     BoolNode,
     BlockNode,
-    IfNode
+    IfNode,
+    WhileNode,
 )
 from tokens import TokenType, Token
 
@@ -143,6 +144,13 @@ class Parser:
         expr = self.parse_expression()
         return AssignNode(id, expr)
 
+    def parse_while_statement(self):
+        self.consume(TokenType.WHILE)
+        expr = self.parse_expression()
+        a = self.parse_block()
+
+        return WhileNode(expr, a)
+
 
     def parse_if_statement(self):
         self.consume(TokenType.IF)
@@ -173,6 +181,8 @@ class Parser:
             checkDelimiter = True
         elif token.type == TokenType.IF:
             statement = self.parse_if_statement()
+        elif token.type == TokenType.WHILE:
+            statement = self.parse_while_statement()
         else:
             raise SyntaxError(f"Unexpected token: '{token.val}'")
 

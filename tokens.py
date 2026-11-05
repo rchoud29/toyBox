@@ -13,7 +13,9 @@ class TokenType(Enum):
     PRINT = auto()
     IF = auto()
     ELSE = auto()
+    FINALLY = auto()
     WHILE = auto()
+    FOR = auto()
 
     # Operators
     PLUS = auto()
