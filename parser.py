@@ -148,8 +148,15 @@ class Parser:
         self.consume(TokenType.WHILE)
         expr = self.parse_expression()
         a = self.parse_block()
+        c = None
 
-        return WhileNode(expr, a)
+        token = self.peek()
+        if token.type == TokenType.FINALLY:
+            self.consume(TokenType.FINALLY)
+            c = self.parse_block()
+
+
+        return WhileNode(expr, a, c)
 
 
     def parse_if_statement(self):
@@ -157,12 +164,17 @@ class Parser:
         expr = self.parse_expression()
         a = self.parse_block()
         b = None
+        c = None
         token = self.peek()
         if token.type == TokenType.ELSE:
             self.consume(TokenType.ELSE)
             b = self.parse_block()
+            token = self.peek()
+        if token.type == TokenType.FINALLY:
+            self.consume(TokenType.FINALLY)
+            c = self.parse_block()
 
-        return IfNode(expr, a, b)
+        return IfNode(expr, a, b, c)
 
     def parse_statement(self):
         #<statement>			::= ( <print_statement> | <assignment> ) ";"
