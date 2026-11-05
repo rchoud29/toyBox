@@ -214,7 +214,9 @@ class Parser:
         token = self.peek()
         if token.type == TokenType.ELSE:
             self.consume(TokenType.ELSE)
-            b = self.parse_block()
+            if self.peek().type == TokenType.IF:
+                b = self.parse_if_statement()
+            else: b = self.parse_block()
             token = self.peek()
         if token.type == TokenType.FINALLY:
             self.consume(TokenType.FINALLY)
@@ -242,6 +244,8 @@ class Parser:
             statement = self.parse_while_statement()
         elif token.type == TokenType.FOR:
             statement = self.parse_for_statement()
+        elif token.type == TokenType.LBRACE:
+            statement = self.parse_block()
         else:
             self.syntax_error("Unexpected statement start", token)
 
