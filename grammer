@@ -1,5 +1,16 @@
 <program>			::= <statement> [ <statement> ... ]
+
+<block>				::= "{" [ <statement> ... ] "}"
+
 <statement>			::= ( <print_statement> | <assignment> ) ";"
+					  | <if_statement>
+					  | <while_statement>
+					  | <block>
+
+<if_statement>		::= "if" "(" <expression> ")" <block> [ "else" ( <if_statement> | <block> ) ]
+
+<while_statement>	::= "while" "(" <expression> ")" <block>
+
 <print_statement>	::= "print" "(" <expression> ")
 <assignment>		::= <identifier> "=" <expression>
 

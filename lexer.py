@@ -1,14 +1,19 @@
 from tokens import TokenType, Token
 
 KEYWORDS = {
-    "print": TokenType.PRINT,
     "true": TokenType.BOOLEAN,
     "false": TokenType.BOOLEAN,
+    "if": TokenType.IF,
+    "else": TokenType.ELSE,
+    "while": TokenType.WHILE,
+    "print": TokenType.PRINT,
 }
 
 SYMBOLS = {
     '(': TokenType.LPAREN,
     ')': TokenType.RPAREN,
+    '{': TokenType.LBRACE,
+    '}': TokenType.RBRACE,
     ';': TokenType.SEMICOLON,
     '+': TokenType.PLUS,
     '-': TokenType.MINUS,

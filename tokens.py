@@ -35,6 +35,8 @@ class TokenType(Enum):
     # Delimiters
     LPAREN = auto()      # (
     RPAREN = auto()      # )
+    LBRACE = auto()      # {
+    RBRACE = auto()      # 
     SEMICOLON = auto()   # ;
 
     # Control

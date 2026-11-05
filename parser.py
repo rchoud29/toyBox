@@ -8,6 +8,8 @@ from ASTNode import (
     NumNode,
     IdNode,
     BoolNode,
+    BlockNode,
+    IfNode
 )
 from tokens import TokenType, Token
 
@@ -141,9 +143,18 @@ class Parser:
         expr = self.parse_expression()
         return AssignNode(id, expr)
 
+
+    def parse_if_statement(self):
+        self.consume(TokenType.IF)
+        expr = self.parse_expression()
+        block = self.parse_block()
+
+        return IfNode(expr, block)
+
     def parse_statement(self):
         #<statement>			::= ( <print_statement> | <assignment> ) ";"
         token = self.peek()
+        checkDelimiter = False
         if token.type is TokenType.EOF:
             raise SyntaxError("Expected statement, got EOF")
         
@@ -151,16 +162,27 @@ class Parser:
             input(f"{token}>")
         if token.type == TokenType.PRINT:
             statement = self.parse_print_statement()
+            checkDelimiter = True
         elif token.type == TokenType.IDENTIFIER:
             statement = self.parse_assignment()
+            checkDelimiter = True
+        elif token.type == TokenType.IF:
+            statement = self.parse_if_statement()
         else:
-            raise SyntaxError("Unexpected token: '{token.val}'")
+            raise SyntaxError(f"Unexpected token: '{token.val}'")
 
-        self.consume(TokenType.SEMICOLON)
-        if (self.step):
-            print(statement)
+        if checkDelimiter: self.consume(TokenType.SEMICOLON)
+        if self.step: print(statement)
         return statement
 
+    def parse_block(self):
+        self.consume(TokenType.LBRACE)
+        statements = []
+        while self.peek().type != TokenType.EOF and \
+              self.peek().type != TokenType.RBRACE:
+            statements.append(self.parse_statement())
+        self.consume(TokenType.RBRACE)
+        return BlockNode(statements)
 
     def parse_program(self):
         #<program>			::= <statement> [ <statement> ... ]

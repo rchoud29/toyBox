@@ -31,21 +31,32 @@ class ToyLang:
         while self.lexer.peek():
             print(next(self.lexer.tokens()))
 
+    def nodes(self):
+        print(self.parser.parse_program())
+        return self.parser.parse_program()
+
+
 
 if __name__ == '__main__':
     argParser = argparse.ArgumentParser('ToyLang')
     argParser.add_argument('filename')
     argParser.add_argument('-s', '--step', action='store_const', const=1)
     argParser.add_argument('-t', '--tokens', action='store_const', const=True)
+    argParser.add_argument('-n', '--nodes', action='store_const', const=True)
 
     args = argParser.parse_args()
     with open(args.filename, 'rt') as f:
         code = f.read()
 
-    program = ToyLang(code)
-    if args.step == 1:
-        program.step()
-    elif args.tokens:
+    if args.tokens:
+        program = ToyLang(code)
         program.tokens()
+    if args.nodes:
+        program = ToyLang(code)
+        program.nodes()
+    if args.step == 1:
+        program = ToyLang(code)
+        program.step()
     else:
+        program = ToyLang(code)
         program.run()

@@ -1,5 +1,4 @@
-a = True;
-b = False;
-c = False;
-print(a != b);
-print((a||b) && (c));
+a = 9;
+if (a) {
+print(a);
+}

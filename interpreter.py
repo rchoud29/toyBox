@@ -8,8 +8,10 @@ from ASTNode import (
     NumNode,
     IdNode,
     BoolNode,
+    IfNode,
+    BlockNode,
 )
-from tokens import TokenType
+from tokens import Token, TokenType
 
 class Interpreter:
     def __init__(self):
@@ -22,12 +24,28 @@ class Interpreter:
                 result = self.interpret(statement)
             return result
 
+        if isinstance(node, IfNode):
+            result = None
+            cond = None
+            if isinstance(node.cond, BoolNode):
+                cond = node.cond.val
+            else:
+                cond = self.env[node.cond.name]
+            if cond:
+                for statement in node.a.statements:
+                    result = self.interpret(statement)
+            else:
+                for statement in node.b.statements:
+                    result = self.interpret(statement)
+            return result
+
         if isinstance(node, AssignNode):
             val = self.interpret(node.expr)
             self.env[node.name.val] = val
             return val
 
         if isinstance(node, PrintNode):
+            print(node)
             val = self.interpret(node.expr)
             print(val)
             return val

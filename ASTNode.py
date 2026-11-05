@@ -71,8 +71,24 @@ class AssignNode(ASTNode):
         return f"AssignNode({self.name} = {self.expr})"
 
 @dataclass
+class IfNode(ASTNode):
+    cond: BoolNode
+    a: ASTNode
+    b: ASTNode = None
+
+    def __repr__(self):
+        return f"IfNode({self.cond}, {self.a}, {self.b})"
+
+@dataclass
+class BlockNode(ASTNode):
+    statements: List[ASTNode] = field(default_factory=list)
+
+    def __repr__(self):
+        return f"BlockNode({self.statements})"
+
+@dataclass
 class ProgramNode(ASTNode):
     statements: List[ASTNode] = field(default_factory=list)
 
     def __repr__(self):
-        return f"ProgramNode({self.statements})"
+        return f"ProgramNode({self.statements!r})"
