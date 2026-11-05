@@ -9,7 +9,9 @@
 
 <if_statement>		::= "if" "(" <expression> ")" <block> [ "else" ( <if_statement> | <block> ) ]
 
-<while_statement>	::= "while" "(" <expression> ")" <block>
+<while_statement>	::= "while" "(" <expression> ")" <block> [ "finally" <block> ]
+
+<for_statement>		::= "for" "( <assignment> [ "," <assignment> .. ] ";" <expression> ";" <block> ")" <block> [ "finally" <block> ]
 
 <print_statement>	::= "print" "(" <expression> ")
 <assignment>		::= <identifier> "=" <expression>
