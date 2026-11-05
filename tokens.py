@@ -22,24 +22,25 @@ class TokenType(Enum):
     MINUS = auto()
     STAR = auto()
     SLASH = auto()
-    ASSIGN = auto()      # =
-    EQ = auto()          # ==
-    NEQ = auto()         # !=
-    LESS = auto()        # <
-    LEQ = auto()         # <=
-    GREATER = auto()     # >
-    GEQ = auto()         # >=
-    AND = auto()         # &&
-    BAND = auto()        # &
-    OR = auto()          # ||
-    BOR = auto()         # |
+    ASSIGN = auto()     # =
+    EQ = auto()         # ==
+    NEQ = auto()        # !=
+    LESS = auto()       # <
+    LEQ = auto()        # <=
+    GREATER = auto()    # >
+    GEQ = auto()        # >=
+    AND = auto()        # &&
+    BAND = auto()       # &
+    OR = auto()         # ||
+    BOR = auto()        # |
 
     # Delimiters
-    LPAREN = auto()      # (
-    RPAREN = auto()      # )
-    LBRACE = auto()      # {
-    RBRACE = auto()      # 
-    SEMICOLON = auto()   # ;
+    LPAREN = auto()     # (
+    RPAREN = auto()     # )
+    LBRACE = auto()     # {
+    RBRACE = auto()     # 
+    SEMICOLON = auto()  # ;
+    COMMA = auto()      # ,
 
     # Control
     EOF = auto()

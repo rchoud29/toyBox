@@ -1,16 +1,7 @@
-a = 9;
-b = 19;
-if (a + b == 21) {
+for (a = 0, b = 10; a <= b; {a = a + 2; b = b + 1;}) {
 	print(a);
-} else {
 	print(b);
 } finally {
-	print(a + b);
-}
-
-while (a < b) {
-	print(b - a);
-	a = a + 1;
-} finally {
-	print(a*b);
+	print(a);
+	print(b);
 }

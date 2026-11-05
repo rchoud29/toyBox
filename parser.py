@@ -11,6 +11,7 @@ from ASTNode import (
     BlockNode,
     IfNode,
     WhileNode,
+    ForNode,
 )
 from tokens import TokenType, Token
 
@@ -144,18 +145,38 @@ class Parser:
         expr = self.parse_expression()
         return AssignNode(id, expr)
 
+    def parse_for_statement(self):
+        self.consume(TokenType.FOR)
+        self.consume(TokenType.LPAREN)
+        assignments = []
+        assignments.append(self.parse_assignment())
+        while self.peek().type == TokenType.COMMA:
+            self.consume(TokenType.COMMA)
+            assignments.append(self.parse_assignment())
+        self.consume(TokenType.SEMICOLON)
+        cond = self.parse_expression()
+        self.consume(TokenType.SEMICOLON)
+        block = self.parse_block()
+        self.consume(TokenType.RPAREN)
+        a = self.parse_block()
+        c = None
+        if self.peek().type == TokenType.FINALLY:
+            self.consume(TokenType.FINALLY)
+            c = self.parse_block()
+
+        return ForNode(assignments, cond, block, a, c)
+
+
+
     def parse_while_statement(self):
         self.consume(TokenType.WHILE)
         expr = self.parse_expression()
         a = self.parse_block()
         c = None
-
         token = self.peek()
         if token.type == TokenType.FINALLY:
             self.consume(TokenType.FINALLY)
             c = self.parse_block()
-
-
         return WhileNode(expr, a, c)
 
 
@@ -195,6 +216,8 @@ class Parser:
             statement = self.parse_if_statement()
         elif token.type == TokenType.WHILE:
             statement = self.parse_while_statement()
+        elif token.type == TokenType.FOR:
+            statement = self.parse_for_statement()
         else:
             raise SyntaxError(f"Unexpected token: '{token.val}'")
 

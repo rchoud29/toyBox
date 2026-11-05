@@ -21,9 +21,9 @@ SYMBOLS = {
     '-': TokenType.MINUS,
     '*': TokenType.STAR,
     '/': TokenType.SLASH,
-
     '<': TokenType.LESS,
     '>': TokenType.GREATER,
+    ',': TokenType.COMMA
 }
 
 class Lexer:

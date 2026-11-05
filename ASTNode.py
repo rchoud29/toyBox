@@ -156,10 +156,10 @@ class WhileNode(ASTNode):
 
 
 @dataclass(repr=False)
-class ForLoop(ASTNode):
+class ForNode(ASTNode):
     assignments: List[ASTNode]
-    conds: List[ASTNode]
-    blocks: List[ASTNode]
+    cond: ASTNode
+    block: ASTNode 
     a: ASTNode
     c: Optional[ASTNode] = None
 
