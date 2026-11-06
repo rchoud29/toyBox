@@ -12,6 +12,7 @@ from ASTNode import (
     BlockNode,
     WhileNode,
     ForNode,
+    StrNode
 )
 from tokens import Token, TokenType
 
@@ -148,5 +149,8 @@ class Interpreter:
                 return True
             else:
                 return False
+
+        if isinstance(node, StrNode):
+            return node.val
 
         raise RuntimeError(f"Unknown AST Node: {type(node).__name__}")

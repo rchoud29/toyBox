@@ -29,4 +29,4 @@
 <factor>			::= <primary> [ <mult_op> <factor> ]
 <mult_op>			::= "*" | "/"
 
-<primary>			::= <number> | <identifier> | <bool> | "(" <expression> ")"
+<primary>			::= <number> | """ <string> """ | <identifier> | <bool> | "(" <expression> ")"

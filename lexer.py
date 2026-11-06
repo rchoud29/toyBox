@@ -23,7 +23,7 @@ SYMBOLS = {
     '/': TokenType.SLASH,
     '<': TokenType.LESS,
     '>': TokenType.GREATER,
-    ',': TokenType.COMMA
+    ',': TokenType.COMMA,
 }
 
 class Lexer:
@@ -61,6 +61,11 @@ class Lexer:
     def isidentifierpart(self, char):
         allowed = {'_'}
         return char.isalnum() or char in allowed
+
+    def isstringpart(self, char):
+        blacklist = {'"'}
+        return char not in blacklist
+
 
     def next_token(self):
         if self.returned_tokens:
@@ -141,6 +146,18 @@ class Lexer:
                 else:
                     self.advance(1)
                     yield Token(TokenType.GREATER, '>', start_line, start_col, start_pos)
+                continue
+
+            if char == '"':
+                val = ""
+                i = self.pos
+                while self.pos < len(code_lower) and self.peek() != '"':
+                    self.advance(1)
+                val = code_lower[i+1:self.pos+1]
+                if self.peek() != '"':
+                    self.raise_error(f"Expected '\"' after string")
+                self.advance(2)
+                yield Token(TokenType.STRING, val, start_line, start_col, start_pos)
                 continue
 
             if char in SYMBOLS:

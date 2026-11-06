@@ -12,6 +12,7 @@ from ASTNode import (
     IfNode,
     WhileNode,
     ForNode,
+    StrNode,
 )
 from tokens import TokenType, Token
 
@@ -72,6 +73,10 @@ class Parser:
         if token.type == TokenType.NUMBER:
             self.consume(TokenType.NUMBER)
             return NumNode(token.val)
+
+        if token.type == TokenType.STRING:
+            self.consume(TokenType.STRING)
+            return StrNode(token.val)
 
         if token.type == TokenType.IDENTIFIER:
             self.consume(TokenType.IDENTIFIER)

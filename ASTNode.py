@@ -66,6 +66,13 @@ class NumNode(ASTNode):
 
 
 @dataclass(repr=False)
+class StrNode(ASTNode):
+    val: str
+
+    def code(self):
+        return str
+
+@dataclass(repr=False)
 class BoolNode(ASTNode):
     val: bool
 
