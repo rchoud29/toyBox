@@ -1,0 +1,4 @@
+Core philosophy:
+everything is 1s & 0s in hardware
+memory is transparent
+abstractions are transparent and explicit

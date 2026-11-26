@@ -1,0 +1,44 @@
+(* Character classes *)
+
+letter      = "a" ... "z" | "A" ... "Z" ;
+digit       = "0" ... "9" ;
+
+(* ids and literals *)
+
+id  = ( letter | "_" ),
+              { letter | digit | "_" } ;
+
+int     = digit, { digit } ;
+
+bool     = "true" | "false" ;
+
+(* Keywords *)
+
+keyword     = "fn" | "df" | "st" | "return"
+            | "if" | "else" | "while" ;
+
+(* ops *)
+
+op    = "+" | "-" | "*" | "/" | "%"
+            | "=" | "==" | "!=" | "!"
+            | "<" | ">" | "<=" | ">=" ;
+
+(* delims *)
+
+delim   = "(" | ")" | "{" | "}"
+            | ":" | ";" | "," ;
+
+(* Whitespace *)
+
+whitespace  = " " | "\t" | "\n" | "\r" ;
+
+(* Tokens *)
+
+token       = keyword
+            | bool
+            | id
+            | int
+            | op
+            | delim ;
+
+source      = { token | whitespace } ;
