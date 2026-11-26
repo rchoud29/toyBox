@@ -1,448 +1,95 @@
-from tokens import Token, TokenKind
+from tokens import TokenKind as K
 from ast_nodes import *
-
-
+class ParserError(Exception): pass
 class Parser:
-    def __init__(self, tokens: list[Token]):
-        self.tokens = tokens
-        self.pos = 0
-
-    # Cursor management
-    def peek(self, offset: int = 0) -> Token:
-        index = self.pos + offset
-
-        if index < 0 or index >= len(self.tokens):
-            raise ParserError("Token index out of bounds")
-
-        return self.tokens[index]
-
-    def at_end(self) -> bool:
-        return self.peek().kind == TokenKind.EOF
-
-    def advance(self) -> Token:
-        token = self.peek()
-
-        if not self.at_end():
-            self.pos += 1
-
-        return token
-
-    def check(self, kind: TokenKind) -> bool:
-        return self.peek().kind == kind
-
-    def match(self, *kinds: TokenKind) -> bool:
-        if self.peek().kind in kinds:
-            self.advance()
-            return True
-
+    def __init__(self,tokens): self.tokens=tokens; self.pos=0
+    def peek(self,offset=0): return self.tokens[min(self.pos+offset,len(self.tokens)-1)]
+    def at_end(self): return self.check(K.EOF)
+    def advance(self):
+        t=self.peek()
+        if not self.at_end(): self.pos+=1
+        return t
+    def check(self,k): return self.peek().kind==k
+    def match(self,*kinds):
+        if self.peek().kind in kinds: self.advance(); return True
         return False
-
-    def expect(self, kind: TokenKind) -> Token:
-        if self.check(kind):
-            return self.advance()
-
-        raise ParserError(
-            f"Expected {kind.name}, "
-            f"got {self.peek().kind.name}",
-            self.peek()
-        )
-
-    # Program structure
-
-    # program = { function }, EOF ;
-
-    def parse_program(self) -> Program:
-        functions = []
-
-        while not self.at_end():
-            functions.append(self.parse_function())
-
-        self.expect(TokenKind.EOF)
-
-        return Program(functions)
-
-    # function = "fn", id, "(", [ parameters ], ")",
-    #            ":", type, block ;
-
-    def parse_function(self) -> Function:
-        self.expect(TokenKind.FN)
-
-        name = self.expect(TokenKind.IDENTIFIER).lexeme
-
-        self.expect(TokenKind.LPAREN)
-
-        parameters = []
-
-        if not self.check(TokenKind.RPAREN):
-            parameters = self.parse_parameters()
-
-        self.expect(TokenKind.RPAREN)
-        self.expect(TokenKind.COLON)
-
-        return_type = self.parse_type()
-        body = self.parse_block()
-
-        return Function(name, parameters, return_type, body)
-
-    # parameters = parameter, { ",", parameter } ;
-
-    def parse_parameters(self) -> list[Parameter]:
-        parameters = [self.parse_parameter()]
-
-        while self.match(TokenKind.COMMA):
-            parameters.append(self.parse_parameter())
-
-        return parameters
-
-    # parameter = id, ":", type ;
-
-    def parse_parameter(self) -> Parameter:
-        name = self.expect(TokenKind.IDENTIFIER).lexeme
-
-        self.expect(TokenKind.COLON)
-
-        data_type = self.parse_type()
-
-        return Parameter(name, data_type)
-
-    # block = "{", { statement }, "}" ;
-
-    def parse_block(self) -> Block:
-        self.expect(TokenKind.LBRACE)
-
-        statements = []
-
-        while not self.check(TokenKind.RBRACE):
-            if self.at_end():
-                raise ParserError(
-                    "Expected '}' before EOF",
-                    self.peek()
-                )
-
-            statements.append(self.parse_statement())
-
-        self.expect(TokenKind.RBRACE)
-
-        return Block(statements)
-
-    # Statements
-
-    # statement = declaration
-    #           | assignment
-    #           | return_stmt
-    #           | if_stmt
-    #           | while_stmt
-    #           | call, ";" ;
-
-    def parse_statement(self) -> Statement:
-        kind = self.peek().kind
-
-        if kind == TokenKind.DF:
-            return self.parse_declaration()
-
-        if kind == TokenKind.ST:
-            return self.parse_assignment()
-
-        if kind == TokenKind.RETURN:
-            return self.parse_return_stmt()
-
-        if kind == TokenKind.IF:
-            return self.parse_if_stmt()
-
-        if kind == TokenKind.WHILE:
-            return self.parse_while_stmt()
-
-        if kind == TokenKind.IDENTIFIER:
-            call = self.parse_call()
-            self.expect(TokenKind.SEMICOLON)
-
-            return CallStatement(call)
-
-        raise ParserError(
-            "Expected statement",
-            self.peek()
-        )
-
-    # declaration = "df", id, ":", type,
-    #               "=", expression, ";" ;
-
-    def parse_declaration(self) -> Declaration:
-        self.expect(TokenKind.DF)
-
-        name = self.expect(TokenKind.IDENTIFIER).lexeme
-
-        self.expect(TokenKind.COLON)
-
-        data_type = self.parse_type()
-
-        self.expect(TokenKind.ASSIGN)
-
-        value = self.parse_expression()
-
-        self.expect(TokenKind.SEMICOLON)
-
-        return Declaration(name, data_type, value)
-
-    # assignment = "st", id, "=", expression, ";" ;
-
-    def parse_assignment(self) -> Assignment:
-        self.expect(TokenKind.ST)
-
-        name = self.expect(TokenKind.IDENTIFIER).lexeme
-
-        self.expect(TokenKind.ASSIGN)
-
-        value = self.parse_expression()
-
-        self.expect(TokenKind.SEMICOLON)
-
-        return Assignment(name, value)
-
-    # return_stmt = "return", [ expression ], ";" ;
-
-    def parse_return_stmt(self) -> Return:
-        self.expect(TokenKind.RETURN)
-
-        value = None
-
-        if not self.check(TokenKind.SEMICOLON):
-            value = self.parse_expression()
-
-        self.expect(TokenKind.SEMICOLON)
-
-        return Return(value)
-
-    # if_stmt = "if", "(", expression, ")", block,
-    #           [ "else", ( block | if_stmt ) ] ;
-
-    def parse_if_stmt(self) -> If:
-        self.expect(TokenKind.IF)
-        self.expect(TokenKind.LPAREN)
-
-        condition = self.parse_expression()
-
-        self.expect(TokenKind.RPAREN)
-
-        body = self.parse_block()
-        else_body = None
-
-        if self.match(TokenKind.ELSE):
-            if self.check(TokenKind.IF):
-                else_body = self.parse_if_stmt()
-            else:
-                else_body = self.parse_block()
-
-        return If(condition, body, else_body)
-
-    # while_stmt = "while", "(", expression, ")", block ;
-
-    def parse_while_stmt(self) -> While:
-        self.expect(TokenKind.WHILE)
-        self.expect(TokenKind.LPAREN)
-
-        condition = self.parse_expression()
-
-        self.expect(TokenKind.RPAREN)
-
-        body = self.parse_block()
-
-        return While(condition, body)
-
-    # Expressions
-
-    # expression = equality ;
-
-    def parse_expression(self) -> Expression:
-        return self.parse_equality()
-
-    # equality = comparison,
-    #            { ( "==" | "!=" ), comparison } ;
-
-    def parse_equality(self) -> Expression:
-        left = self.parse_comparison()
-
-        while self.peek().kind in (
-            TokenKind.EQ,
-            TokenKind.NEQ
-        ):
-            op = self.advance().kind
-            right = self.parse_comparison()
-
-            left = BinaryExpression(left, op, right)
-
+    def error(self,msg):
+        t=self.peek(); return ParserError(f'{t.line}:{t.column}: {msg}; found {t.lexeme!r}')
+    def expect(self,k):
+        if not self.check(k): raise self.error(f'Expected {k.name}')
+        return self.advance()
+    def parse_program(self):
+        fs=[]
+        while not self.at_end(): fs.append(self.parse_function())
+        return Program(fs)
+    def parse_function(self):
+        self.expect(K.FN); name=self.expect(K.IDENTIFIER).lexeme; self.expect(K.LPAREN)
+        ps=[] if self.check(K.RPAREN) else self.parse_parameters()
+        self.expect(K.RPAREN); self.expect(K.COLON)
+        return Function(name,ps,self.parse_type(),self.parse_block())
+    def parse_parameters(self):
+        ps=[self.parse_parameter()]
+        while self.match(K.COMMA): ps.append(self.parse_parameter())
+        return ps
+    def parse_parameter(self):
+        name=self.expect(K.IDENTIFIER).lexeme; self.expect(K.COLON); return Parameter(name,self.parse_type())
+    def parse_block(self):
+        self.expect(K.LBRACE); ss=[]
+        while not self.check(K.RBRACE): ss.append(self.parse_statement())
+        self.expect(K.RBRACE); return Block(ss)
+    def parse_statement(self):
+        methods={K.DF:self.parse_declaration,K.ST:self.parse_assignment,K.RETURN:self.parse_return_stmt,K.IF:self.parse_if_stmt,K.WHILE:self.parse_while_stmt}
+        if self.peek().kind in methods: return methods[self.peek().kind]()
+        if self.check(K.IDENTIFIER):
+            c=self.parse_call(); self.expect(K.SEMICOLON); return CallStatement(c)
+        raise self.error('Expected statement')
+    def parse_declaration(self):
+        self.expect(K.DF); bs=[self.parse_binding()]
+        while self.match(K.COMMA): bs.append(self.parse_binding())
+        self.expect(K.SEMICOLON); return Declaration(bs)
+    def parse_binding(self):
+        name=self.expect(K.IDENTIFIER).lexeme; self.expect(K.COLON); t=self.parse_type(); self.expect(K.ASSIGN)
+        return Binding(name,t,self.parse_expression())
+    def parse_assignment(self):
+        self.expect(K.ST); name=self.expect(K.IDENTIFIER).lexeme; self.expect(K.ASSIGN); v=self.parse_expression(); self.expect(K.SEMICOLON); return Assignment(name,v)
+    def parse_return_stmt(self):
+        self.expect(K.RETURN); v=None if self.check(K.SEMICOLON) else self.parse_expression(); self.expect(K.SEMICOLON); return Return(v)
+    def parse_if_stmt(self):
+        self.expect(K.IF); self.expect(K.LPAREN); c=self.parse_expression(); self.expect(K.RPAREN); b=self.parse_block(); e=None
+        if self.match(K.ELSE): e=self.parse_if_stmt() if self.check(K.IF) else self.parse_block()
+        return If(c,b,e)
+    def parse_while_stmt(self):
+        self.expect(K.WHILE); self.expect(K.LPAREN); c=self.parse_expression(); self.expect(K.RPAREN); return While(c,self.parse_block())
+    def parse_expression(self): return self.parse_equality()
+    def binary(self,lower,kinds):
+        left=lower()
+        while self.peek().kind in kinds: left=BinaryExpression(left,self.advance().kind,lower())
         return left
-
-    # comparison = additive,
-    #              { ( "<" | ">" | "<=" | ">=" ), additive } ;
-
-    def parse_comparison(self) -> Expression:
-        left = self.parse_additive()
-
-        while self.peek().kind in (
-            TokenKind.LT,
-            TokenKind.GT,
-            TokenKind.LTE,
-            TokenKind.GTE
-        ):
-            op = self.advance().kind
-            right = self.parse_additive()
-
-            left = BinaryExpression(left, op, right)
-
-        return left
-
-    # additive = multiplicative,
-    #            { ( "+" | "-" ), multiplicative } ;
-
-    def parse_additive(self) -> Expression:
-        left = self.parse_multiplicative()
-
-        while self.peek().kind in (
-            TokenKind.PLUS,
-            TokenKind.MINUS
-        ):
-            op = self.advance().kind
-            right = self.parse_multiplicative()
-
-            left = BinaryExpression(left, op, right)
-
-        return left
-
-    # multiplicative = unary,
-    #                  { ( "*" | "/" | "%" ), unary } ;
-
-    def parse_multiplicative(self) -> Expression:
-        left = self.parse_unary()
-
-        while self.peek().kind in (
-            TokenKind.STAR,
-            TokenKind.SLASH,
-            TokenKind.PERCENT
-        ):
-            op = self.advance().kind
-            right = self.parse_unary()
-
-            left = BinaryExpression(left, op, right)
-
-        return left
-
-    # unary = ( "-" | "!" ), unary
-    #       | postfix ;
-
-    def parse_unary(self) -> Expression:
-        if self.peek().kind in (
-            TokenKind.MINUS,
-            TokenKind.NOT
-            ):
-            op = self.advance().kind
-            operand = self.parse_unary()
-
-            return UnaryExpression(op, operand)
-
+    def parse_equality(self): return self.binary(self.parse_comparison,(K.EQ,K.NEQ))
+    def parse_comparison(self): return self.binary(self.parse_additive,(K.LT,K.GT,K.LTE,K.GTE))
+    def parse_additive(self): return self.binary(self.parse_multiplicative,(K.PLUS,K.MINUS))
+    def parse_multiplicative(self): return self.binary(self.parse_unary,(K.STAR,K.SLASH,K.PERCENT))
+    def parse_unary(self):
+        if self.peek().kind in (K.MINUS,K.NOT): return UnaryExpression(self.advance().kind,self.parse_unary())
         return self.parse_postfix()
-
-    # postfix = primary, { ":", type } ;
-
-    def parse_postfix(self) -> Expression:
-        value = self.parse_primary()
-
-        while self.match(TokenKind.COLON):
-            data_type = self.parse_type()
-            value = Cast(data_type, value)
-
-        return value
-
-    # primary = int
-    #         | bool
-    #         | id, [ "(", [ arguments ], ")" ]
-    #         | "(", expression, ")" ;
-
-    def parse_primary(self) -> Expression:
-        kind = self.peek().kind
-
-        if kind == TokenKind.INTEGER:
-            token = self.advance()
-
-            return Integer(int(token.lexeme))
-
-        if kind == TokenKind.TRUE:
-            self.advance()
-
-            return Boolean(True)
-
-        if kind == TokenKind.FALSE:
-            self.advance()
-
-            return Boolean(False)
-
-        if kind == TokenKind.IDENTIFIER:
-            if self.peek(1).kind == TokenKind.LPAREN:
-                return self.parse_call()
-
+    def parse_postfix(self):
+        v=self.parse_primary()
+        while self.match(K.COLON): v=Cast(self.parse_type(),v)
+        return v
+    def parse_primary(self):
+        if self.check(K.INTEGER): return Integer(int(self.advance().lexeme))
+        if self.match(K.TRUE): return Boolean(True)
+        if self.match(K.FALSE): return Boolean(False)
+        if self.check(K.IDENTIFIER):
+            if self.peek(1).kind==K.LPAREN: return self.parse_call()
             return Identifier(self.advance().lexeme)
-
-        if self.match(TokenKind.LPAREN):
-            expression = self.parse_expression()
-
-            self.expect(TokenKind.RPAREN)
-
-            return expression
-
-        raise ParserError(
-            "Expected expression",
-            self.peek()
-        )
-
-    # Function calls
-
-    # call = id, "(", [ arguments ], ")" ;
-
-    def parse_call(self) -> Call:
-        name = self.expect(TokenKind.IDENTIFIER).lexeme
-
-        self.expect(TokenKind.LPAREN)
-
-        arguments = []
-
-        if not self.check(TokenKind.RPAREN):
-            arguments = self.parse_arguments()
-
-        self.expect(TokenKind.RPAREN)
-
-        return Call(name, arguments)
-
-    # arguments = expression, { ",", expression } ;
-
-    def parse_arguments(self) -> list[Expression]:
-        arguments = [self.parse_expression()]
-
-        while self.match(TokenKind.COMMA):
-            arguments.append(self.parse_expression())
-
-        return arguments
-
-    # Types
-
-    # type = id ;
-
-    def parse_type(self) -> Type:
-        name = self.expect(TokenKind.IDENTIFIER).lexeme
-
-        return Type(name)
-
-
-class ParserError(Exception):
-    def __init__(
-        self,
-        message: str,
-        token: Token | None = None
-    ):
-        if token is None:
-            super().__init__(f"ParserError: {message}")
-            return
-
-        super().__init__(
-            f"ParserError at {token.line}:{token.column}: "
-            f"{message}\n"
-            f"Found: {token.lexeme!r}"
-        )
+        if self.match(K.LPAREN):
+            v=self.parse_expression(); self.expect(K.RPAREN); return v
+        raise self.error('Expected expression')
+    def parse_call(self):
+        name=self.expect(K.IDENTIFIER).lexeme; self.expect(K.LPAREN); args=[] if self.check(K.RPAREN) else self.parse_arguments(); self.expect(K.RPAREN); return Call(name,args)
+    def parse_arguments(self):
+        args=[self.parse_expression()]
+        while self.match(K.COMMA): args.append(self.parse_expression())
+        return args
+    def parse_type(self): return Type(self.expect(K.IDENTIFIER).lexeme)

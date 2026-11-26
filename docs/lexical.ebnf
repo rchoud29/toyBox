@@ -1,0 +1,20 @@
+(* Character classes *)
+letter = "a" ... "z" | "A" ... "Z" ;
+digit = "0" ... "9" ;
+
+(* Identifiers and literals *)
+id = ( letter | "_" ), { letter | digit | "_" } ;
+int = digit, { digit } ;
+bool = "true" | "false" ;
+
+keyword = "fn" | "df" | "st" | "return" | "if" | "else" | "while" ;
+op = "+" | "-" | "*" | "/" | "%" | "=" | "==" | "!=" | "!"
+   | "<" | ">" | "<=" | ">=" ;
+delim = "(" | ")" | "{" | "}" | ":" | ";" | "," ;
+whitespace = " " | "\t" | "\n" | "\r" ;
+token = keyword | bool | id | int | op | delim ;
+source = { token | whitespace } ;
+
+(* Maximal munch; keyword and bool take precedence over id.
+   Alphabetic terminals and identifiers are case-insensitive.
+   Whitespace is discarded; EOF is appended. *)

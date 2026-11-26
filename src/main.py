@@ -1,181 +1,38 @@
-import argparse
-import subprocess
-import sys
-
+import argparse,subprocess,sys,tempfile
 from pathlib import Path
-
-from lexer import Lexer, LexerError
-from parser import Parser, ParserError
-from semantic import SemanticAnalyzer, SemanticError
+from pprint import pprint
+from lexer import Lexer,LexerError
+from parser import Parser,ParserError
+from semantic import SemanticAnalyzer,SemanticError
 from ir_generator import IRGenerator
 from ir import IRError
-from backend import Backend, BackendError
-
+from backend import Backend,BackendError
 
 def main():
-    cli = argparse.ArgumentParser(
-        description="toyBox native compiler"
-    )
-
-    cli.add_argument(
-        "source",
-        type=Path,
-        help="Source file"
-    )
-
-    cli.add_argument(
-        "-o",
-        "--output",
-        type=Path,
-        default=Path("a.out"),
-        help="Output executable"
-    )
-
-    cli.add_argument(
-        "--emit-tokens",
-        action="store_true"
-    )
-
-    cli.add_argument(
-        "--emit-ast",
-        action="store_true"
-    )
-
-    cli.add_argument(
-        "--emit-ir",
-        action="store_true"
-    )
-
-    cli.add_argument(
-        "--emit-asm",
-        action="store_true"
-    )
-
-    cli.add_argument(
-        "--keep-files",
-        action="store_true"
-    )
-
-    args = cli.parse_args()
-
+    p=argparse.ArgumentParser(description='toyBox compiler'); p.add_argument('source',type=Path); p.add_argument('-o','--output',type=Path,default=Path('a.out'))
+    for flag in ('tokens','ast','ir','asm'): p.add_argument('--emit-'+flag,action='store_true')
+    p.add_argument('--keep-files',action='store_true'); args=p.parse_args()
     try:
-        src = args.source.read_text(
-            encoding="utf-8"
-        )
-
-        # Lexical analysis
-
-        lexer = Lexer(src)
-        tokens = lexer.tokenize()
-
-        if args.emit_tokens:
-            for token in tokens:
-                print(token)
-
-            return
-
-        # Parsing
-
-        parser = Parser(tokens)
-        ast = parser.parse_program()
-
-        if args.emit_ast:
-            from pprint import pprint
-
-            pprint(ast)
-            return
-
-        # Semantic analysis
-
-        analyzer = SemanticAnalyzer()
-        analyzer.analyze(ast)
-
-        # Intermediate representation
-
-        generator = IRGenerator(analyzer)
-        module = generator.generate(ast)
-
-        if args.emit_ir:
-            print(module)
-            return
-
-        # Native code generation
-
-        backend = Backend()
-        assembly = backend.generate(module)
-
-        if args.emit_asm:
-            print(assembly)
-            return
-
-        # Output files
-
-        output = args.output
-
-        asm_file = Path(f"{output}.asm")
-        obj_file = Path(f"{output}.o")
-
-        if args.source.resolve() in (
-            output.resolve(),
-            asm_file.resolve(),
-            obj_file.resolve()
-        ):
-            raise BackendError(
-                "Output would overwrite the source file"
-            )
-
-        asm_file.write_text(
-            assembly,
-            encoding="utf-8"
-        )
-
-        # Assemble
-
-        subprocess.run(
-            [
-                "nasm",
-                "-f",
-                "elf64",
-                str(asm_file),
-                "-o",
-                str(obj_file)
-            ],
-            check=True
-        )
-
-        # Link
-
-        subprocess.run(
-            [
-                "ld",
-                str(obj_file),
-                "-o",
-                str(output)
-            ],
-            check=True
-        )
-
-        # Clean intermediate files
-
-        if not args.keep_files:
-            asm_file.unlink()
-            obj_file.unlink()
-
-        print(f"Compiled: {output}")
-
-    except (
-        LexerError,
-        ParserError,
-        SemanticError,
-        IRError,
-        BackendError,
-        OSError,
-        subprocess.CalledProcessError
-    ) as error:
-
-        print(error, file=sys.stderr)
-        sys.exit(1)
-
-
-if __name__ == "__main__":
-    main()
+        tokens=Lexer(args.source.read_text(encoding='utf-8')).tokenize()
+        if args.emit_tokens: pprint(tokens); return
+        ast=Parser(tokens).parse_program()
+        if args.emit_ast: pprint(ast); return
+        sem=SemanticAnalyzer(); sem.analyze(ast); module=IRGenerator(sem).generate(ast)
+        if args.emit_ir: print(module); return
+        asm=Backend().generate(module)
+        if args.emit_asm: print(asm,end=''); return
+        out=args.output.resolve()
+        if out==args.source.resolve(): raise BackendError('Output would overwrite source')
+        with tempfile.TemporaryDirectory() as tmp:
+            af=Path(tmp)/'output.asm'; of=Path(tmp)/'output.o'; af.write_text(asm)
+            subprocess.run(['nasm','-f','elf64',str(af),'-o',str(of)],check=True)
+            subprocess.run(['ld',str(of),'-o',str(out)],check=True)
+            if args.keep_files:
+                for f,suffix in ((af,'.asm'),(of,'.o')):
+                    dest=Path(str(out)+suffix)
+                    if dest.resolve()==args.source.resolve(): raise BackendError('Intermediate would overwrite source')
+                    dest.write_bytes(f.read_bytes())
+        print(f'Compiled: {out}')
+    except (LexerError,ParserError,SemanticError,IRError,BackendError,OSError,subprocess.CalledProcessError) as e:
+        print(e,file=sys.stderr); sys.exit(1)
+if __name__=='__main__': main()

@@ -1,53 +1,22 @@
-from __future__ import annotations
 from dataclasses import dataclass
 from typesys import DataType
-
-
-@dataclass
+@dataclass(eq=False)
 class VariableSymbol:
-    name: str
-    type: DataType
-
-
-@dataclass
+    name:str; type:DataType
+@dataclass(eq=False)
 class FunctionSymbol:
-    name: str
-    parameters: list[VariableSymbol]
-    return_type: DataType
-
-
-Symbol = VariableSymbol | FunctionSymbol
-
-
+    name:str; parameters:list[VariableSymbol]; return_type:DataType
+Symbol=VariableSymbol|FunctionSymbol
+class SymbolError(Exception): pass
 class Scope:
-    def __init__(self, parent: Scope | None = None):
-        self.parent = parent
-        self.symbols: dict[str, Symbol] = {}
-
-    def define(self, symbol: Symbol) -> None:
-        name = symbol.name.lower()
-
-        if name in self.symbols:
-            raise SymbolError(
-                f"'{symbol.name}' is already defined"
-            )
-
-        self.symbols[name] = symbol
-
-    def resolve(self, name: str) -> Symbol:
-        key = name.lower()
-
-        if key in self.symbols:
-            return self.symbols[key]
-
-        if self.parent is not None:
-            return self.parent.resolve(name)
-
-        raise SymbolError(f"Undefined identifier '{name}'")
-
-    def contains(self, name: str) -> bool:
-        return name.lower() in self.symbols
-
-
-class SymbolError(Exception):
-    pass
+    def __init__(self,parent=None): self.parent=parent; self.symbols={}
+    def define(self,s):
+        k=s.name.lower()
+        if k in self.symbols: raise SymbolError(f'Duplicate declaration {s.name}')
+        self.symbols[k]=s
+    def resolve(self,name):
+        k=name.lower()
+        if k in self.symbols: return self.symbols[k]
+        if self.parent: return self.parent.resolve(name)
+        raise SymbolError(f'Undefined identifier {name}')
+    def contains(self,name): return name.lower() in self.symbols

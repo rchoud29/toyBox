@@ -1,670 +1,124 @@
-from ast_nodes import *
+import ast_nodes as a
 from typesys import *
 from symbols import *
-from tokens import TokenKind
-
-
+from tokens import TokenKind as K
+class SemanticError(Exception): pass
+ARITH=(K.PLUS,K.MINUS,K.STAR,K.SLASH,K.PERCENT)
+ORDER=(K.LT,K.GT,K.LTE,K.GTE)
+EQ=(K.EQ,K.NEQ)
+def divide(x,y):
+    if y==0: raise SemanticError('Division by zero')
+    return (abs(x)//abs(y))*(-1 if (x<0)!=(y<0) else 1)
 class SemanticAnalyzer:
     def __init__(self):
-        self.global_scope = Scope()
-        self.scope = self.global_scope
-
-        self.current_function: FunctionSymbol | None = None
-
-        self.expression_types: dict[int, DataType] = {}
-        self.resolved_symbols: dict[int, Symbol] = {}
-        self.constant_values: dict[int, int | bool] = {}
-
-    # Scope management
-
-    def enter_scope(self) -> None:
-        self.scope = Scope(self.scope)
-
-    def exit_scope(self) -> None:
-        if self.scope.parent is None:
-            raise SemanticError("Cannot exit global scope")
-
-        self.scope = self.scope.parent
-
-    # Type and symbol resolution
-
-    def resolve_type(self, node: Type) -> DataType:
+        self.global_scope=Scope(); self.scope=self.global_scope; self.current_function=None
+        self.expression_types={}; self.resolved_symbols={}; self.constant_values={}
+    def analyze(self,program):
+        self.__init__()
         try:
-            return resolve_type(node.name)
-
-        except TypeError as error:
-            raise SemanticError(str(error)) from error
-
-    def resolve_symbol(self, name: str) -> Symbol:
-        try:
-            return self.scope.resolve(name)
-
-        except SymbolError as error:
-            raise SemanticError(str(error)) from error
-
-    def define_symbol(self, symbol: Symbol) -> None:
-        try:
-            self.scope.define(symbol)
-
-        except SymbolError as error:
-            raise SemanticError(str(error)) from error
-
-    def require_type(
-        self,
-        actual: DataType,
-        expected: DataType
-    ) -> None:
-        if actual != expected:
-            raise SemanticError(
-                f"Expected {expected}, got {actual}"
-            )
-
-    # Program analysis
-
-    def analyze(self, program: Program) -> Program:
-        self.global_scope = Scope()
-        self.scope = self.global_scope
-        self.current_function = None
-
-        self.expression_types.clear()
-        self.resolved_symbols.clear()
-        self.constant_values.clear()
-
-        # Pass 1: Register function signatures.
-
-        for function in program.functions:
-            self.register_function(function)
-
-        # Pass 2: Analyze function bodies.
-
-        for function in program.functions:
-            self.analyze_function(function)
-
+            for f in program.functions: self.register_function(f)
+            for f in program.functions: self.analyze_function(f)
+        except (TypeError,SymbolError) as e: raise SemanticError(str(e)) from e
         return program
-
-    def register_function(self, node: Function) -> None:
-        return_type = self.resolve_type(node.return_type)
-
-        parameters = []
-        names = set()
-
-        for param in node.parameters:
-            data_type = self.resolve_type(param.type)
-
-            if data_type == VOID:
-                raise SemanticError(
-                    f"Parameter '{param.name}' cannot be void"
-                )
-
-            name = param.name.lower()
-
-            if name in names:
-                raise SemanticError(
-                    f"Duplicate parameter '{param.name}'"
-                )
-
-            names.add(name)
-
-            symbol = VariableSymbol(param.name, data_type)
-
-            parameters.append(symbol)
-            self.resolved_symbols[id(param)] = symbol
-
-        symbol = FunctionSymbol(
-            node.name,
-            parameters,
-            return_type
-        )
-
-        self.define_symbol(symbol)
-        self.resolved_symbols[id(node)] = symbol
-
-    def analyze_function(self, node: Function) -> None:
-        symbol = self.resolve_symbol(node.name)
-
-        if not isinstance(symbol, FunctionSymbol):
-            raise SemanticError(
-                f"'{node.name}' is not a function"
-            )
-
-        self.current_function = symbol
-        self.enter_scope()
-
+    def register_function(self,f):
+        ps=[VariableSymbol(p.name,resolve_type(p.type.name)) for p in f.parameters]
+        if any(p.type==VOID for p in ps): raise SemanticError('Void parameter')
+        s=FunctionSymbol(f.name,ps,resolve_type(f.return_type.name)); self.scope.define(s); self.resolved_symbols[id(f)]=s
+        for p,sym in zip(f.parameters,ps): self.resolved_symbols[id(p)]=sym
+    def analyze_function(self,f):
+        s=self.resolved_symbols[id(f)]; self.current_function=s; self.scope=Scope(self.global_scope)
         try:
-            for param in symbol.parameters:
-                self.define_symbol(param)
-
-            self.analyze_block(node.body, new_scope=False)
-
-            if (
-                symbol.return_type != VOID
-                and not self.block_returns(node.body)
-            ):
-                raise SemanticError(
-                    f"Function '{node.name}' does not "
-                    f"return on every path"
-                )
-
-        finally:
-            self.exit_scope()
-            self.current_function = None
-
-    def analyze_block(
-        self,
-        node: Block,
-        new_scope: bool = True
-    ) -> None:
-
-        if new_scope:
-            self.enter_scope()
-
+            for p in s.parameters: self.scope.define(p)
+            self.analyze_block(f.body,False)
+            if s.return_type!=VOID and not self.block_returns(f.body): raise SemanticError(f'{f.name} may not return')
+        finally: self.scope=self.global_scope; self.current_function=None
+    def analyze_block(self,b,new_scope=True):
+        old=self.scope
+        if new_scope: self.scope=Scope(old)
         try:
-            for statement in node.statements:
-                self.analyze_statement(statement)
-
-        finally:
-            if new_scope:
-                self.exit_scope()
-
-    # Statement analysis
-
-    def analyze_statement(self, node: Statement) -> None:
-        match node:
-            case Declaration():
-                self.analyze_declaration(node)
-
-            case Assignment():
-                self.analyze_assignment(node)
-
-            case Return():
-                self.analyze_return(node)
-
-            case If():
-                self.analyze_if(node)
-
-            case While():
-                self.analyze_while(node)
-
-            case CallStatement():
-                self.analyze_expression(node.call)
-
-            case _:
-                raise SemanticError(
-                    f"Unknown statement: "
-                    f"{type(node).__name__}"
-                )
-
-    def analyze_declaration(self, node: Declaration) -> None:
-        data_type = self.resolve_type(node.type)
-
-        if data_type == VOID:
-            raise SemanticError(
-                f"Variable '{node.name}' cannot be void"
-            )
-
-        self.analyze_expression(node.value, data_type)
-
-        symbol = VariableSymbol(node.name, data_type)
-
-        self.define_symbol(symbol)
-        self.resolved_symbols[id(node)] = symbol
-
-    def analyze_assignment(self, node: Assignment) -> None:
-        symbol = self.resolve_symbol(node.name)
-
-        if not isinstance(symbol, VariableSymbol):
-            raise SemanticError(
-                f"Cannot assign to '{node.name}'"
-            )
-
-        self.analyze_expression(node.value, symbol.type)
-
-        self.resolved_symbols[id(node)] = symbol
-
-    def analyze_return(self, node: Return) -> None:
-        if self.current_function is None:
-            raise SemanticError(
-                "Return outside of function"
-            )
-
-        return_type = self.current_function.return_type
-
-        if return_type == VOID:
-            if node.value is not None:
-                raise SemanticError(
-                    "Void function cannot return a value"
-                )
-
-            return
-
-        if node.value is None:
-            raise SemanticError(
-                f"Expected return value of type {return_type}"
-            )
-
-        self.analyze_expression(node.value, return_type)
-
-    def analyze_if(self, node: If) -> None:
-        self.analyze_expression(node.condition, BOOL)
-
-        self.analyze_block(node.body)
-
-        if isinstance(node.else_body, Block):
-            self.analyze_block(node.else_body)
-
-        elif isinstance(node.else_body, If):
-            self.analyze_if(node.else_body)
-
-    def analyze_while(self, node: While) -> None:
-        self.analyze_expression(node.condition, BOOL)
-        self.analyze_block(node.body)
-
-    # Expression analysis
-
-    def analyze_expression(
-        self,
-        node: Expression,
-        expected: DataType | None = None
-    ) -> DataType:
-
-        match node:
-            case Integer():
-                result = self.analyze_integer(node, expected)
-
-            case Boolean():
-                result = BOOL
-                self.constant_values[id(node)] = node.value
-
-            case Identifier():
-                result = self.analyze_identifier(node)
-
-            case BinaryExpression():
-                result = self.analyze_binary(node, expected)
-
-            case UnaryExpression():
-                result = self.analyze_unary(node, expected)
-
-            case Call():
-                result = self.analyze_call(node)
-
-            case Cast():
-                result = self.analyze_cast(node)
-
-            case _:
-                raise SemanticError(
-                    f"Unknown expression: "
-                    f"{type(node).__name__}"
-                )
-
-        if expected is not None:
-            self.require_type(result, expected)
-
-        self.expression_types[id(node)] = result
-
-        return result
-
-    # Integer literals
-
-    def analyze_integer(
-        self,
-        node: Integer,
-        expected: DataType | None
-    ) -> DataType:
-
-        self.constant_values[id(node)] = node.value
-
-        if expected is None or expected == INT_LITERAL:
-            return INT_LITERAL
-
-        if not expected.is_integer():
-            raise SemanticError(
-                f"Integer literal cannot be used as {expected}"
-            )
-
-        if not expected.fits(node.value):
-            raise SemanticError(
-                f"Integer {node.value} does not fit in "
-                f"{expected} "
-                f"({expected.minimum} to {expected.maximum})"
-            )
-
-        return expected
-
-    # Identifiers
-
-    def analyze_identifier(self, node: Identifier) -> DataType:
-        symbol = self.resolve_symbol(node.name)
-
-        if not isinstance(symbol, VariableSymbol):
-            raise SemanticError(
-                f"'{node.name}' is not a variable"
-            )
-
-        self.resolved_symbols[id(node)] = symbol
-
-        return symbol.type
-
-    # Binary expressions
-
-    def analyze_binary(
-        self,
-        node: BinaryExpression,
-        expected: DataType | None
-    ) -> DataType:
-
-        arithmetic = (
-            TokenKind.PLUS,
-            TokenKind.MINUS,
-            TokenKind.STAR,
-            TokenKind.SLASH,
-            TokenKind.PERCENT
-        )
-
-        comparison = (
-            TokenKind.LT,
-            TokenKind.GT,
-            TokenKind.LTE,
-            TokenKind.GTE
-        )
-
-        equality = (
-            TokenKind.EQ,
-            TokenKind.NEQ
-        )
-
-        if node.op not in arithmetic + comparison + equality:
-            raise SemanticError(
-                f"Unknown binary operator {node.op.name}"
-            )
-
-        # Initially resolve both operand types.
-
-        left = self.analyze_expression(node.left)
-        right = self.analyze_expression(node.right)
-
-        # Resolve untyped literals using the other operand.
-
-        if left == INT_LITERAL and right.is_integer():
-            left = self.analyze_expression(node.left, right)
-
-        elif right == INT_LITERAL and left.is_integer():
-            right = self.analyze_expression(node.right, left)
-
-        # Both operands are untyped integer expressions.
-        # Arithmetic can use the surrounding type context.
-
-        elif left == INT_LITERAL and right == INT_LITERAL:
-            if (
-                node.op in arithmetic
-                and expected is not None
-                and expected.is_integer()
-            ):
-                left = self.analyze_expression(
-                    node.left, expected
-                )
-
-                right = self.analyze_expression(
-                    node.right, expected
-                )
-
-        # No implicit conversion between concrete types.
-
-        if left != right:
-            raise SemanticError(
-                f"Operator {node.op.name} cannot be applied "
-                f"to {left} and {right}"
-            )
-
-        if left == VOID:
-            raise SemanticError(
-                "Cannot use void in a binary expression"
-            )
-
-        if node.op in arithmetic + comparison:
-            if not left.is_integer() and left != INT_LITERAL:
-                raise SemanticError(
-                    f"Operator {node.op.name} requires integers"
-                )
-
-        if node.op in comparison + equality:
-            result = BOOL
-
-        else:
-            result = left
-
-        # Evaluate constant expressions when possible.
-
-        self.evaluate_binary_constant(node, result)
-
-        return result
-
-    # Unary expressions
-
-    def analyze_unary(
-        self,
-        node: UnaryExpression,
-        expected: DataType | None
-    ) -> DataType:
-
-        if node.op == TokenKind.NOT:
-            self.analyze_expression(node.operand, BOOL)
-
-            if id(node.operand) in self.constant_values:
-                self.constant_values[id(node)] = (
-                    not self.constant_values[id(node.operand)]
-                )
-
-            return BOOL
-
-        if node.op == TokenKind.MINUS:
-            operand_type = self.analyze_expression(node.operand)
-
-            if operand_type == INT_LITERAL:
-                value = -self.constant_values[id(node.operand)]
-
-                self.constant_values[id(node)] = value
-
-                if expected is None or expected == INT_LITERAL:
-                    return INT_LITERAL
-
-                if not expected.is_integer():
-                    raise SemanticError(
-                        f"Cannot negate an integer as {expected}"
-                    )
-
-                if not expected.fits(value):
-                    raise SemanticError(
-                        f"Integer {value} does not fit in "
-                        f"{expected}"
-                    )
-
-                return expected
-
-            if not operand_type.is_integer():
-                raise SemanticError(
-                    "Arithmetic negation requires an integer"
-                )
-
-            if id(node.operand) in self.constant_values:
-                value = -self.constant_values[id(node.operand)]
-
-                self.constant_values[id(node)] = cast_value(
-                    value,
-                    operand_type
-                )
-
-            return operand_type
-
-        raise SemanticError(
-            f"Unknown unary operator {node.op.name}"
-        )
-
-    # Function calls
-
-    def analyze_call(self, node: Call) -> DataType:
-        symbol = self.resolve_symbol(node.name)
-
-        if not isinstance(symbol, FunctionSymbol):
-            raise SemanticError(
-                f"'{node.name}' is not a function"
-            )
-
-        if len(node.arguments) != len(symbol.parameters):
-            raise SemanticError(
-                f"Function '{node.name}' expects "
-                f"{len(symbol.parameters)} arguments, got "
-                f"{len(node.arguments)}"
-            )
-
-        for argument, parameter in zip(
-            node.arguments,
-            symbol.parameters
-        ):
-            self.analyze_expression(
-                argument,
-                parameter.type
-            )
-
-        self.resolved_symbols[id(node)] = symbol
-
-        return symbol.return_type
-
-    # Explicit casting
-
-    def analyze_cast(self, node: Cast) -> DataType:
-        source = self.analyze_expression(node.value)
-        destination = self.resolve_type(node.type)
-
-        if not can_cast(source, destination):
-            raise SemanticError(
-                f"Cannot cast {source} to {destination}"
-            )
-
-        if id(node.value) in self.constant_values:
-            value = self.constant_values[id(node.value)]
-
-            self.constant_values[id(node)] = cast_value(
-                value,
-                destination
-            )
-
-        return destination
-
-    # Constant evaluation
-
-    def evaluate_binary_constant(
-        self,
-        node: BinaryExpression,
-        result_type: DataType
-    ) -> None:
-
-        # Remove any previous result if this expression
-        # is being analyzed again with a different context.
-
-        self.constant_values.pop(id(node), None)
-
-        if (
-            node.op in (TokenKind.SLASH, TokenKind.PERCENT)
-            and id(node.right) in self.constant_values
-            and self.constant_values[id(node.right)] == 0
-        ):
-            raise SemanticError("Division by zero")
-
-        if (
-            id(node.left) not in self.constant_values
-            or id(node.right) not in self.constant_values
-        ):
-            return
-
-        left = self.constant_values[id(node.left)]
-        right = self.constant_values[id(node.right)]
-
-        match node.op:
-            case TokenKind.PLUS:
-                value = left + right
-
-            case TokenKind.MINUS:
-                value = left - right
-
-            case TokenKind.STAR:
-                value = left * right
-
-            case TokenKind.SLASH:
-                value = self.integer_divide(left, right)
-
-            case TokenKind.PERCENT:
-                quotient = self.integer_divide(left, right)
-                value = left - quotient * right
-
-            case TokenKind.EQ:
-                value = left == right
-
-            case TokenKind.NEQ:
-                value = left != right
-
-            case TokenKind.LT:
-                value = left < right
-
-            case TokenKind.GT:
-                value = left > right
-
-            case TokenKind.LTE:
-                value = left <= right
-
-            case TokenKind.GTE:
-                value = left >= right
-
-            case _:
-                return
-
-        if result_type.is_integer():
-            value = cast_value(value, result_type)
-
-        self.constant_values[id(node)] = value
-
-    def integer_divide(self, left: int, right: int) -> int:
-        if right == 0:
-            raise SemanticError("Division by zero")
-
-        quotient = abs(left) // abs(right)
-
-        if (left < 0) != (right < 0):
-            quotient = -quotient
-
-        return quotient
-
-    # Control flow analysis
-
-    def block_returns(self, node: Block) -> bool:
-        for statement in node.statements:
-            if self.statement_returns(statement):
-                return True
-
+            for s in b.statements: self.analyze_statement(s)
+        finally: self.scope=old
+    def analyze_statement(self,n):
+        if isinstance(n,a.Declaration):
+            for b in n.bindings:
+                t=resolve_type(b.type.name)
+                if t==VOID: raise SemanticError('Void variable')
+                self.analyze_expression(b.value,t); s=VariableSymbol(b.name,t); self.scope.define(s); self.resolved_symbols[id(b)]=s
+        elif isinstance(n,a.Assignment):
+            s=self.scope.resolve(n.name)
+            if not isinstance(s,VariableSymbol): raise SemanticError('Expected variable')
+            self.analyze_expression(n.value,s.type); self.resolved_symbols[id(n)]=s
+        elif isinstance(n,a.Return):
+            t=self.current_function.return_type
+            if n.value is None:
+                if t!=VOID: raise SemanticError('Missing return value')
+            else:
+                if t==VOID: raise SemanticError('Void function cannot return value')
+                self.analyze_expression(n.value,t)
+        elif isinstance(n,(a.If,a.While)):
+            self.analyze_expression(n.condition,BOOL); self.analyze_block(n.body)
+            if isinstance(n,a.If):
+                if isinstance(n.else_body,a.Block): self.analyze_block(n.else_body)
+                elif n.else_body: self.analyze_statement(n.else_body)
+        elif isinstance(n,a.CallStatement): self.analyze_expression(n.call)
+        else: raise SemanticError('Unknown statement')
+    def block_returns(self,b): return any(self.statement_returns(s) for s in b.statements)
+    def statement_returns(self,s):
+        if isinstance(s,a.Return): return True
+        if isinstance(s,a.If) and s.else_body:
+            return self.block_returns(s.body) and (self.block_returns(s.else_body) if isinstance(s.else_body,a.Block) else self.statement_returns(s.else_body))
         return False
-
-    def statement_returns(self, node: Statement) -> bool:
-        match node:
-            case Return():
-                return True
-
-            case If():
-                if node.else_body is None:
-                    return False
-
-                if not self.block_returns(node.body):
-                    return False
-
-                if isinstance(node.else_body, Block):
-                    return self.block_returns(node.else_body)
-
-                if isinstance(node.else_body, If):
-                    return self.statement_returns(node.else_body)
-
-                return False
-
-            case _:
-                return False
-
-
-class SemanticError(Exception):
-    pass
+    def analyze_expression(self,n,expected=None):
+        t=self.infer(n,expected)
+        if expected is not None and t!=expected: raise SemanticError(f'Expected {expected}, got {t}')
+        self.expression_types[id(n)]=t; return t
+    def infer(self,n,expected):
+        cv=self.constant_values
+        if isinstance(n,a.Integer):
+            cv[id(n)]=n.value
+            if expected is None or expected==INT_LITERAL: return INT_LITERAL
+            if not expected.is_integer() or not expected.fits(n.value): raise SemanticError(f'{n.value} does not fit {expected}')
+            return expected
+        if isinstance(n,a.Boolean): cv[id(n)]=n.value; return BOOL
+        if isinstance(n,a.Identifier):
+            s=self.scope.resolve(n.name)
+            if not isinstance(s,VariableSymbol): raise SemanticError('Expected variable')
+            self.resolved_symbols[id(n)]=s; return s.type
+        if isinstance(n,a.Call):
+            s=self.scope.resolve(n.name)
+            if not isinstance(s,FunctionSymbol) or len(n.arguments)!=len(s.parameters): raise SemanticError(f'Invalid call to {n.name}')
+            for v,p in zip(n.arguments,s.parameters): self.analyze_expression(v,p.type)
+            self.resolved_symbols[id(n)]=s; return s.return_type
+        if isinstance(n,a.Cast):
+            src=self.analyze_expression(n.value); t=resolve_type(n.type.name)
+            if not can_cast(src,t): raise SemanticError('Invalid cast')
+            if id(n.value) in cv: cv[id(n)]=cast_value(cv[id(n.value)],t)
+            return t
+        if isinstance(n,a.UnaryExpression):
+            t=self.analyze_expression(n.operand,BOOL if n.op==K.NOT else None)
+            if n.op==K.NOT:
+                if id(n.operand) in cv: cv[id(n)]=not cv[id(n.operand)]
+                return BOOL
+            if t!=INT_LITERAL and not t.is_integer(): raise SemanticError('Expected integer')
+            if id(n.operand) in cv:
+                v=-cv[id(n.operand)]
+                if t==INT_LITERAL and expected is not None and expected!=INT_LITERAL:
+                    if not expected.is_integer() or not expected.fits(v): raise SemanticError(f'{v} does not fit {expected}')
+                    t=expected
+                cv[id(n)]=cast_value(v,t) if t.is_integer() else v
+            return t
+        if isinstance(n,a.BinaryExpression):
+            l=self.analyze_expression(n.left); r=self.analyze_expression(n.right)
+            if l==INT_LITERAL and r.is_integer(): l=self.analyze_expression(n.left,r)
+            elif r==INT_LITERAL and l.is_integer(): r=self.analyze_expression(n.right,l)
+            elif l==r==INT_LITERAL and n.op in ARITH and expected and expected.is_integer():
+                l=self.analyze_expression(n.left,expected); r=self.analyze_expression(n.right,expected)
+            if l!=r or l==VOID or (n.op in ARITH+ORDER and not (l.is_integer() or l==INT_LITERAL)): raise SemanticError(f'Invalid operands {l}, {r}')
+            t=BOOL if n.op in ORDER+EQ else l
+            if n.op in (K.SLASH,K.PERCENT) and cv.get(id(n.right))==0: raise SemanticError('Division by zero')
+            if id(n.left) in cv and id(n.right) in cv:
+                x,y=cv[id(n.left)],cv[id(n.right)]
+                ops={K.PLUS:lambda:x+y,K.MINUS:lambda:x-y,K.STAR:lambda:x*y,K.SLASH:lambda:divide(x,y),K.PERCENT:lambda:x-divide(x,y)*y,K.EQ:lambda:x==y,K.NEQ:lambda:x!=y,K.LT:lambda:x<y,K.GT:lambda:x>y,K.LTE:lambda:x<=y,K.GTE:lambda:x>=y}
+                v=ops[n.op](); cv[id(n)]=cast_value(v,t) if t.is_integer() else v
+            return t
+        raise SemanticError('Unknown expression')

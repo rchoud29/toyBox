@@ -1,72 +1,25 @@
-(* Program structure *)
+program = { function }, EOF ;
+function = "fn", id, "(", [ parameters ], ")", ":", type, block ;
+parameters = parameter, { ",", parameter } ;
+parameter = id, ":", type ;
+block = "{", { statement }, "}" ;
 
-program     = { function }, EOF ;
-
-function    = "fn", id, "(", [ parameters ], ")",
-              ":", type, block ;
-
-parameters  = parameter, { ",", parameter } ;
-
-parameter   = id, ":", type ;
-
-block       = "{", { statement }, "}" ;
-
-
-(* Statements *)
-
-statement   = declaration
-            | assignment
-            | return_stmt
-            | if_stmt
-            | while_stmt
-            | call, ";" ;
-
-declaration = "df", id, ":", type,
-              "=", expression, ";" ;
-
-assignment  = "st", id, "=", expression, ";" ;
-
+statement = declaration | assignment | return_stmt | if_stmt | while_stmt | call, ";" ;
+declaration = "df", binding, { ",", binding }, ";" ;
+binding = id, ":", type, "=", expression ;
+assignment = "st", id, "=", expression, ";" ;
 return_stmt = "return", [ expression ], ";" ;
+if_stmt = "if", "(", expression, ")", block, [ "else", ( block | if_stmt ) ] ;
+while_stmt = "while", "(", expression, ")", block ;
 
-if_stmt     = "if", "(", expression, ")", block,
-              [ "else", ( block | if_stmt ) ] ;
-
-while_stmt  = "while", "(", expression, ")", block ;
-
-
-(* Expressions - lowest to highest precedence *)
-
-expression  = equality ;
-
-equality    = comparison,
-              { ( "==" | "!=" ), comparison } ;
-
-comparison  = additive,
-              { ( "<" | ">" | "<=" | ">=" ), additive } ;
-
-additive    = multiplicative,
-              { ( "+" | "-" ), multiplicative } ;
-
-multiplicative
-            = unary,
-              { ( "*" | "/" | "%" ), unary } ;
-
-unary       = ( "-" | "!" ), unary
-            | primary ;
-
-primary     = int
-            | bool
-            | id, [ "(", [ arguments ], ")" ]
-            | "(", expression, ")" ;
-
-
-(* Function calls *)
-
-call        = id, "(", [ arguments ], ")" ;
-
-arguments   = expression, { ",", expression } ;
-
-
-(* Types *)
-
-type        = id ;
+expression = equality ;
+equality = comparison, { ( "==" | "!=" ), comparison } ;
+comparison = additive, { ( "<" | ">" | "<=" | ">=" ), additive } ;
+additive = multiplicative, { ( "+" | "-" ), multiplicative } ;
+multiplicative = unary, { ( "*" | "/" | "%" ), unary } ;
+unary = ( "-" | "!" ), unary | postfix ;
+postfix = primary, { ":", type } ;
+primary = int | bool | id, [ "(", [ arguments ], ")" ] | "(", expression, ")" ;
+call = id, "(", [ arguments ], ")" ;
+arguments = expression, { ",", expression } ;
+type = id ;
