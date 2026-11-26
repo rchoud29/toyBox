@@ -4,13 +4,20 @@ parameters = parameter, { ",", parameter } ;
 parameter = id, ":", type ;
 block = "{", { statement }, "}" ;
 
-statement = declaration | assignment | return_stmt | if_stmt | while_stmt | call, ";" ;
-declaration = "df", binding, { ",", binding }, ";" ;
-binding = id, ":", type, "=", expression ;
-assignment = "st", id, "=", expression, ";" ;
+statement = declaration | assignment | return_stmt
+          | if_stmt | while_stmt | for_stmt | call, ";" ;
+declaration = decl_core, ";" ;
+decl_core = "df", binding, { ",", binding } ;
+binding = id, ":", type, [ "=", expression ] ;
+assignment = assign_core, ";" ;
+assign_core = "st", id, ( assign_op, expression | update_op ) ;
+assign_op = "=" | "+=" | "-=" | "*=" | "/=" | "%=" ;
+update_op = "++" | "--" ;
 return_stmt = "return", [ expression ], ";" ;
 if_stmt = "if", "(", expression, ")", block, [ "else", ( block | if_stmt ) ] ;
 while_stmt = "while", "(", expression, ")", block ;
+for_stmt = "for", "(", [ decl_core | assign_core ], ";",
+           [ expression ], ";", [ assign_core ], ")", block ;
 
 expression = equality ;
 equality = comparison, { ( "==" | "!=" ), comparison } ;

@@ -7,9 +7,10 @@ id = ( letter | "_" ), { letter | digit | "_" } ;
 int = digit, { digit } ;
 bool = "true" | "false" ;
 
-keyword = "fn" | "df" | "st" | "return" | "if" | "else" | "while" ;
+keyword = "fn" | "df" | "st" | "return" | "if" | "else" | "while" | "for" ;
 op = "+" | "-" | "*" | "/" | "%" | "=" | "==" | "!=" | "!"
-   | "<" | ">" | "<=" | ">=" ;
+   | "<" | ">" | "<=" | ">="
+   | "+=" | "-=" | "*=" | "/=" | "%=" | "++" | "--" ;
 delim = "(" | ")" | "{" | "}" | ":" | ";" | "," ;
 whitespace = " " | "\t" | "\n" | "\r" ;
 token = keyword | bool | id | int | op | delim ;
